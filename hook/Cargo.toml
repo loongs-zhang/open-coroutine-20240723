@@ -1,0 +1,13 @@
+[package]
+name = "open-coroutine-hook"
+version = "0.5.0"
+edition = "2021"
+authors = ["zhangzicheng@apache.org"]
+description = "The syscall hook for open-coroutine"
+repository = "https://github.com/acl-dev/open-coroutine/tree/dev/open-coroutine-hooks"
+keywords = ["open-coroutine", "hook", "syscall"]
+categories = ["os", "concurrency", "asynchronous"]
+license = "Apache-2.0"
+readme = "/README.md"
+
+[dependencies]
