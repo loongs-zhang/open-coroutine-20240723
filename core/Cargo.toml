@@ -34,4 +34,4 @@ slab = "0.4"
 [features]
 
 # Provide io_uring adaptation, this feature only works in linux.
-io_uring = ["io-uring"]
+io_uring = ["io-uring", "derivative"]

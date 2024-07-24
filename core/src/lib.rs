@@ -7,7 +7,7 @@
     missing_copy_implementations,
     missing_debug_implementations,
     missing_docs,
-    single_use_lifetimes,
+    // single_use_lifetimes, // TODO: fix lifetime names only used once
     // trivial_casts,
     trivial_numeric_casts,
     unreachable_pub,

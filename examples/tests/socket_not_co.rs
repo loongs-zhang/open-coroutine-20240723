@@ -4,7 +4,7 @@ use std::time::Duration;
 
 #[test]
 fn main() -> std::io::Result<()> {
-    let addr = "127.0.0.1:8888";
+    let addr = "127.0.0.1:9000";
     let server_finished_pair = Arc::new((Mutex::new(true), Condvar::new()));
     let server_finished = Arc::clone(&server_finished_pair);
     _ = std::thread::Builder::new()
