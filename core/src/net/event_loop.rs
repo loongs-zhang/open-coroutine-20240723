@@ -114,7 +114,7 @@ macro_rules! impl_io_uring {
     ( $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
         #[cfg(all(target_os = "linux", feature = "io_uring"))]
         impl EventLoop<'_> {
-            pub fn $syscall(
+            pub(super) fn $syscall(
                 &self,
                 $($arg: $arg_type),*
             ) -> std::io::Result<usize> {
