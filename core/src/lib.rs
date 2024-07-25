@@ -47,6 +47,8 @@
 //! see `https://github.com/acl-dev/open-coroutine`
 
 /// net abstraction and impl.
+#[allow(dead_code)]
+#[cfg(feature = "net")]
 pub mod net;
 
 /// Common traits and impl.
