@@ -25,4 +25,5 @@ fi
 
 # test examples
 cd "${PROJECT_DIR}"/examples
+"${CARGO}" test --target "${TARGET}"
 "${CARGO}" test --target "${TARGET}" --release

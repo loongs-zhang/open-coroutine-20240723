@@ -8,8 +8,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::Duration;
 
-#[cfg(all(target_os = "linux", feature = "io_uring"))]
-use libc::{epoll_event, iovec, msghdr, off_t, size_t, sockaddr, socklen_t, ssize_t};
+cfg_if::cfg_if! {
+    if #[cfg(all(target_os = "linux", feature = "io_uring"))] {
+        use libc::{epoll_event, iovec, msghdr, off_t, size_t, sockaddr, socklen_t, ssize_t};
+        use std::ffi::c_void;
+    }
+}
 
 mod selector;
 
