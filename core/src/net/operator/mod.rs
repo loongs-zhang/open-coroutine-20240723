@@ -67,7 +67,7 @@ pub(crate) struct Operator<'o> {
 }
 
 impl Operator<'_> {
-    pub(crate) fn new(_cpu: u32) -> std::io::Result<Self> {
+    pub(crate) fn new(_cpu: usize) -> std::io::Result<Self> {
         IoUring::builder().build(1024).map(|inner| Operator {
             inner,
             entering: AtomicBool::new(false),

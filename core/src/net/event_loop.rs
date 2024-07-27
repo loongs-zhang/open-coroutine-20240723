@@ -1,31 +1,79 @@
+use crate::common::beans::BeanFactory;
+use crate::common::constants::PoolState;
+use crate::common::traits::Current;
 use crate::net::selector::{Event, Events, Poller, Selector};
-#[cfg(all(target_os = "linux", feature = "io_uring"))]
-use libc::{epoll_event, iovec, msghdr, off_t, size_t, sockaddr, socklen_t, ssize_t};
+use crate::{impl_current_for, impl_display_by_debug};
+use std::cell::Cell;
 use std::ffi::{c_char, c_int, c_void, CStr};
+use std::io::{Error, ErrorKind};
 use std::marker::PhantomData;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread::JoinHandle;
 use std::time::Duration;
+
+cfg_if::cfg_if! {
+    if #[cfg(all(target_os = "linux", feature = "io_uring"))] {
+        use libc::{epoll_event, iovec, msghdr, off_t, size_t, sockaddr, socklen_t, ssize_t};
+        use once_cell::sync::Lazy;
+        use dashmap::DashMap;
+    }
+}
 
 #[repr(C)]
 #[derive(Debug)]
 pub(super) struct EventLoop<'e> {
-    cpu: u32,
+    //状态
+    state: Cell<PoolState>,
+    stop: Arc<(Mutex<bool>, Condvar)>,
+    shared_stop: Arc<(Mutex<AtomicUsize>, Condvar)>,
+    cpu: usize,
     #[cfg(all(target_os = "linux", feature = "io_uring"))]
     operator: crate::net::operator::Operator<'e>,
-    #[cfg(all(target_os = "linux", feature = "io_uring"))]
-    operate_table: dashmap::DashMap<usize, ssize_t>,
     selector: Poller,
     // todo remove this when co_pool is implemented
     phantom_data: PhantomData<&'e EventLoop<'e>>,
 }
 
 impl EventLoop<'_> {
-    pub(super) fn new(cpu: u32) -> std::io::Result<Self> {
+    pub(crate) fn get_name(&self) -> String {
+        format!("{}", self.cpu)
+    }
+
+    fn state(&self) -> PoolState {
+        self.state.get()
+    }
+
+    fn stopping(&self) -> std::io::Result<PoolState> {
+        if PoolState::Stopped == self.state() {
+            return Err(Error::new(ErrorKind::Other, "unexpect state"));
+        }
+        Ok(self.state.replace(PoolState::Stopping))
+    }
+
+    fn stopped(&self) -> std::io::Result<PoolState> {
+        if PoolState::Stopping == self.state() {
+            return Ok(self.state.replace(PoolState::Stopped));
+        }
+        Err(Error::new(ErrorKind::Other, "unexpect state"))
+    }
+}
+
+#[cfg(all(target_os = "linux", feature = "io_uring"))]
+static SYSCALL_RESULT: Lazy<DashMap<usize, ssize_t>> = Lazy::new(DashMap::new);
+
+impl<'e> EventLoop<'e> {
+    pub(super) fn new(
+        cpu: usize,
+        shared_stop: Arc<(Mutex<AtomicUsize>, Condvar)>,
+    ) -> std::io::Result<Self> {
         Ok(EventLoop {
+            state: Cell::new(PoolState::Running),
+            stop: Arc::new((Mutex::new(false), Condvar::new())),
+            shared_stop,
             cpu,
             #[cfg(all(target_os = "linux", feature = "io_uring"))]
             operator: crate::net::operator::Operator::new(cpu)?,
-            #[cfg(all(target_os = "linux", feature = "io_uring"))]
-            operate_table: dashmap::DashMap::new(),
             selector: Poller::new()?,
             phantom_data: PhantomData,
         })
@@ -44,6 +92,11 @@ impl EventLoop<'_> {
             }
             thread_id as usize
         }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "io_uring"))]
+    pub(super) fn try_get_syscall_result(token: usize) -> Option<ssize_t> {
+        SYSCALL_RESULT.remove(&token).map(|(_, result)| result)
     }
 
     pub(super) fn add_read_event(&self, fd: c_int) -> std::io::Result<()> {
@@ -79,8 +132,7 @@ impl EventLoop<'_> {
             for cqe in &mut result.1 {
                 let token = cqe.user_data() as usize;
                 // resolve completed read/write tasks
-                assert!(self
-                    .operate_table
+                assert!(SYSCALL_RESULT
                     .insert(token, cqe.result() as ssize_t)
                     .is_none());
                 unsafe { self.resume(token) };
@@ -108,7 +160,127 @@ impl EventLoop<'_> {
             //todo coroutine
         }
     }
+
+    pub(super) fn start(self) -> std::io::Result<Arc<Self>>
+    where
+        'e: 'static,
+    {
+        // init stop flag
+        {
+            let (lock, cvar) = &*self.stop;
+            let mut pending = lock.lock().expect("lock failed");
+            *pending = true;
+            cvar.notify_one();
+        }
+        let thread_name = self.get_thread_name();
+        let bean_name = self.get_name().to_string().leak();
+        let bean_name_in_thread = self.get_name().to_string().leak();
+        BeanFactory::init_bean(bean_name, self);
+        BeanFactory::init_bean(
+            &thread_name,
+            std::thread::Builder::new()
+                .name(thread_name.clone())
+                .spawn(move || {
+                    let consumer =
+                        unsafe { BeanFactory::get_mut_bean::<Self>(bean_name_in_thread) }
+                            .unwrap_or_else(|| panic!("bean {bean_name_in_thread} not exist !"));
+                    {
+                        let (lock, cvar) = &*consumer.shared_stop.clone();
+                        let started = lock.lock().expect("lock failed");
+                        _ = started.fetch_add(1, Ordering::Release);
+                        cvar.notify_one();
+                    }
+                    // thread per core
+                    eprintln!(
+                        "{} has started, pin:{}",
+                        consumer.get_name(),
+                        core_affinity::set_for_current(core_affinity::CoreId { id: consumer.cpu })
+                    );
+                    Self::init_current(consumer);
+                    while PoolState::Running == consumer.state()
+                    // || !consumer.is_empty()
+                    // || consumer.get_running_size() > 0
+                    {
+                        _ = consumer.wait_event(Some(Duration::from_millis(10)));
+                    }
+                    // notify stop flags
+                    {
+                        let (lock, cvar) = &*consumer.stop.clone();
+                        let mut pending = lock.lock().expect("lock failed");
+                        *pending = false;
+                        cvar.notify_one();
+                    }
+                    {
+                        let (lock, cvar) = &*consumer.shared_stop.clone();
+                        let started = lock.lock().expect("lock failed");
+                        _ = started.fetch_sub(1, Ordering::Release);
+                        cvar.notify_one();
+                    }
+                    Self::clean_current();
+                    eprintln!("{} has exited", consumer.get_name());
+                })?,
+        );
+        unsafe {
+            Ok(Arc::from_raw(
+                BeanFactory::get_bean::<Self>(bean_name)
+                    .unwrap_or_else(|| panic!("bean {bean_name} not exist !")),
+            ))
+        }
+    }
+
+    fn get_thread_name(&self) -> String {
+        format!("{}-thread", self.get_name())
+    }
+
+    // pub(super) fn stop_sync(&mut self, wait_time: Duration) -> std::io::Result<()> {
+    //     match self.state() {
+    //         PoolState::Running => {
+    //             assert_eq!(PoolState::Stopping, self.stopping()?);
+    //             let mut left = wait_time;
+    //             let once = Duration::from_millis(10);
+    //             loop {
+    //                 if left.is_zero() {
+    //                     return Err(Error::new(ErrorKind::TimedOut, "stop timeout !"));
+    //                 }
+    //                 self.wait_event(Some(left.min(once)))?;
+    //                 if self.pool.is_empty() && self.pool.get_running_size() == 0 {
+    //                     assert_eq!(PoolState::Stopped, self.stopped()?);
+    //                     return Ok(());
+    //                 }
+    //                 left = left.saturating_sub(once);
+    //             }
+    //         }
+    //         PoolState::Stopping => Err(Error::new(ErrorKind::Other, "should never happens")),
+    //         PoolState::Stopped => Ok(()),
+    //     }
+    // }
+
+    pub(super) fn stop(&self, wait_time: Duration) -> std::io::Result<()> {
+        match self.state() {
+            PoolState::Running => {
+                if BeanFactory::remove_bean::<JoinHandle<()>>(&self.get_thread_name()).is_some() {
+                    assert_eq!(PoolState::Stopping, self.stopping()?);
+                    //开启了单独的线程
+                    let (lock, cvar) = &*self.stop;
+                    let result = cvar
+                        .wait_timeout_while(lock.lock().unwrap(), wait_time, |&mut pending| pending)
+                        .unwrap();
+                    if result.1.timed_out() {
+                        return Err(Error::new(ErrorKind::TimedOut, "stop timeout !"));
+                    }
+                    assert_eq!(PoolState::Stopped, self.stopped()?);
+                }
+                Ok(())
+            }
+            PoolState::Stopping => Err(Error::new(ErrorKind::Other, "should never happens")),
+            PoolState::Stopped => Ok(()),
+        }
+    }
 }
+
+impl_current_for!(EVENT_LOOP, EventLoop<'e>);
+
+impl_display_by_debug!(EventLoop<'e>);
 
 macro_rules! impl_io_uring {
     ( $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
