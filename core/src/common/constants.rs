@@ -88,6 +88,7 @@ pub enum Syscall {
 
 impl Syscall {
     /// Get the `NIO` syscall.
+    #[must_use]
     pub fn nio() -> Self {
         cfg_if::cfg_if! {
             if #[cfg(target_os = "linux")] {
