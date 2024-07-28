@@ -204,7 +204,7 @@ pub(super) use {mio::Events, mio_adapter::Poller};
 mod mio_adapter;
 
 #[cfg(windows)]
-pub use {polling::Poller, polling_adapter::Events};
+pub(super) use {polling::Poller, polling_adapter::Events};
 
 #[cfg(windows)]
 mod polling_adapter;

@@ -2,7 +2,7 @@ use polling::{Event, PollMode, Poller};
 use std::ffi::c_int;
 use std::time::Duration;
 
-pub type Events = Vec<Event>;
+pub(crate) type Events = Vec<Event>;
 
 impl super::Interest for Event {
     fn read(token: usize) -> Self {

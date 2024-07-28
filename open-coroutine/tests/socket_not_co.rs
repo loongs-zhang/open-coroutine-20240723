@@ -10,9 +10,9 @@ fn start_server<A: ToSocketAddrs>(addr: A, server_finished: Arc<(Mutex<bool>, Co
         let mut buffer1 = [0; 256];
         for _ in 0..3 {
             assert_eq!(12, socket.read(&mut buffer1).expect("recv failed"));
-            println!("Server Received: {}", String::from_utf8_lossy(&buffer1));
+            eprintln!("Server Received: {}", String::from_utf8_lossy(&buffer1));
             assert_eq!(256, socket.write(&buffer1).expect("send failed"));
-            println!("Server Send");
+            eprintln!("Server Send");
         }
         let mut buffer2 = [0; 256];
         for _ in 0..3 {
@@ -21,7 +21,7 @@ fn start_server<A: ToSocketAddrs>(addr: A, server_finished: Arc<(Mutex<bool>, Co
                 26,
                 socket.read_vectored(&mut buffers).expect("readv failed")
             );
-            println!(
+            eprintln!(
                 "Server Received Multiple: {}{}",
                 String::from_utf8_lossy(&buffer1),
                 String::from_utf8_lossy(&buffer2)
@@ -31,16 +31,16 @@ fn start_server<A: ToSocketAddrs>(addr: A, server_finished: Arc<(Mutex<bool>, Co
                 512,
                 socket.write_vectored(&responses).expect("writev failed")
             );
-            println!("Server Send Multiple");
+            eprintln!("Server Send Multiple");
         }
-        println!("Server Shutdown Write");
+        eprintln!("Server Shutdown Write");
         if socket.shutdown(Shutdown::Write).is_ok() {
-            println!("Server Closed Connection");
+            eprintln!("Server Closed Connection");
             let (lock, cvar) = &*server_finished;
             let mut pending = lock.lock().unwrap();
             *pending = false;
             cvar.notify_one();
-            println!("Server Closed");
+            eprintln!("Server Closed");
             return;
         }
     }
@@ -57,9 +57,9 @@ fn start_client<A: ToSocketAddrs>(addr: A) {
                 .write(format!("RequestPart{i}").as_ref())
                 .expect("send failed")
         );
-        println!("Client Send");
+        eprintln!("Client Send");
         assert_eq!(256, stream.read(&mut buffer1).expect("recv failed"));
-        println!("Client Received: {}", String::from_utf8_lossy(&buffer1));
+        eprintln!("Client Received: {}", String::from_utf8_lossy(&buffer1));
     }
     let mut buffer2 = [0; 256];
     for i in 0..3 {
@@ -70,21 +70,21 @@ fn start_client<A: ToSocketAddrs>(addr: A) {
             IoSlice::new(request2.as_ref()),
         ];
         assert_eq!(26, stream.write_vectored(&requests).expect("writev failed"));
-        println!("Client Send Multiple");
+        eprintln!("Client Send Multiple");
         let mut buffers = [IoSliceMut::new(&mut buffer1), IoSliceMut::new(&mut buffer2)];
         assert_eq!(
             512,
             stream.read_vectored(&mut buffers).expect("readv failed")
         );
-        println!(
+        eprintln!(
             "Client Received Multiple: {}{}",
             String::from_utf8_lossy(&buffer1),
             String::from_utf8_lossy(&buffer2)
         );
     }
-    println!("Client Shutdown Write");
+    eprintln!("Client Shutdown Write");
     stream.shutdown(Shutdown::Write).expect("shutdown failed");
-    println!("Client Closed");
+    eprintln!("Client Closed");
 }
 
 #[test]
