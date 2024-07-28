@@ -46,10 +46,25 @@
 )]
 //! see `https://github.com/acl-dev/open-coroutine`
 
+/// Common traits and impl.
+pub mod common;
+
 /// net abstraction and impl.
 #[allow(dead_code)]
 #[cfg(feature = "net")]
 pub mod net;
 
-/// Common traits and impl.
-pub mod common;
+/// Syscall impl.
+#[allow(
+    missing_docs,
+    clippy::similar_names,
+    clippy::not_unsafe_ptr_arg_deref,
+    clippy::many_single_char_names,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::unnecessary_cast,
+    trivial_numeric_casts
+)]
+#[cfg(feature = "syscall")]
+pub mod syscall;

@@ -60,4 +60,7 @@ net = ["polling", "mio", "core_affinity"]
 # Provide io_uring adaptation, this feature only works in linux.
 io_uring = ["net", "io-uring", "derivative"]
 
-default = ["net"]
+# Provide syscall implementation.
+syscall = ["net"]
+
+default = ["syscall"]

@@ -30,6 +30,8 @@ pub(super) struct EventLoop<'e> {
     cpu: usize,
     #[cfg(all(target_os = "linux", feature = "io_uring"))]
     operator: crate::net::operator::Operator<'e>,
+    #[cfg(all(target_os = "linux", feature = "io_uring"))]
+    result_table: DashMap<usize, ssize_t>,
     selector: Poller,
     // todo remove this when co_pool is implemented
     phantom_data: PhantomData<&'e EventLoop<'e>>,
@@ -59,9 +61,6 @@ impl EventLoop<'_> {
     }
 }
 
-#[cfg(all(target_os = "linux", feature = "io_uring"))]
-static SYSCALL_RESULT: Lazy<DashMap<usize, ssize_t>> = Lazy::new(DashMap::new);
-
 impl<'e> EventLoop<'e> {
     pub(super) fn new(
         cpu: usize,
@@ -74,6 +73,8 @@ impl<'e> EventLoop<'e> {
             cpu,
             #[cfg(all(target_os = "linux", feature = "io_uring"))]
             operator: crate::net::operator::Operator::new(cpu)?,
+            #[cfg(all(target_os = "linux", feature = "io_uring"))]
+            result_table: DashMap::new(),
             selector: Poller::new()?,
             phantom_data: PhantomData,
         })
@@ -95,8 +96,8 @@ impl<'e> EventLoop<'e> {
     }
 
     #[cfg(all(target_os = "linux", feature = "io_uring"))]
-    pub(super) fn try_get_syscall_result(token: usize) -> Option<ssize_t> {
-        SYSCALL_RESULT.remove(&token).map(|(_, result)| result)
+    pub(super) fn try_get_syscall_result(&self, token: usize) -> Option<ssize_t> {
+        self.result_table.remove(&token).map(|(_, result)| result)
     }
 
     pub(super) fn add_read_event(&self, fd: c_int) -> std::io::Result<()> {
@@ -132,7 +133,8 @@ impl<'e> EventLoop<'e> {
             for cqe in &mut result.1 {
                 let token = cqe.user_data() as usize;
                 // resolve completed read/write tasks
-                assert!(SYSCALL_RESULT
+                assert!(self
+                    .result_table
                     .insert(token, cqe.result() as ssize_t)
                     .is_none());
                 unsafe { self.resume(token) };

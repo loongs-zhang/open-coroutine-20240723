@@ -163,12 +163,6 @@ impl EventLoops {
         Ok(())
     }
 
-    /// Get the result of the syscall completed by io_uring
-    #[cfg(all(target_os = "linux", feature = "io_uring"))]
-    pub fn try_get_syscall_result(token: usize) -> Option<ssize_t> {
-        EventLoop::try_get_syscall_result(token)
-    }
-
     /// Stop all `EventLoop`.
     pub fn stop(wait_time: Duration) -> std::io::Result<()> {
         if let Some(instance) = unsafe { INSTANCE.take() } {
@@ -201,10 +195,15 @@ macro_rules! impl_io_uring {
             #[allow(missing_docs)]
             pub fn $syscall(
                 $($arg: $arg_type),*
-            ) -> std::io::Result<usize> {
-                EventLoop::current()
-                    .unwrap_or_else(|| Self::round_robin())
-                    .$syscall($($arg, )*)
+            ) -> std::io::Result<$result> {
+                let event_loop = EventLoop::current().unwrap_or_else(|| Self::round_robin());
+                let token = event_loop.$syscall($($arg, )*)?;
+                loop {
+                    if let Some(syscall_result) = event_loop.try_get_syscall_result(token) {
+                        return Ok(syscall_result as _);
+                    }
+                    event_loop.wait_just(timeout)?;
+                }
             }
         }
     }

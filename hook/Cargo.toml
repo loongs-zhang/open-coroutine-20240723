@@ -11,6 +11,23 @@ license = "Apache-2.0"
 readme = "/README.md"
 
 [dependencies]
+once_cell = "1.19.0"
+open-coroutine-core = { version = "0.5.0", path = "../core", features = [
+    "syscall"], default-features = false }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.155"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Threading",
+    "Win32_Security",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemServices"
+] }
+retour = { version = "0.3.1", features = ["static-detour"] }
 
 [lib]
 crate-type = ["cdylib"]
