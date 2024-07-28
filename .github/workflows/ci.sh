@@ -27,3 +27,9 @@ fi
 cd "${PROJECT_DIR}"/open-coroutine
 "${CARGO}" test --target "${TARGET}"
 "${CARGO}" test --target "${TARGET}" --release
+
+if [ "${TARGET}" = "x86_64-unknown-linux-gnu" ]; then
+    # test io_uring
+    "${CARGO}" test --target "${TARGET}" --features io_uring
+    "${CARGO}" test --target "${TARGET}" --features io_uring --release
+fi
