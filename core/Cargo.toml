@@ -15,7 +15,8 @@ cfg-if = "1.0.0"
 once_cell = "1.19"
 dashmap = "6.0.1"
 num_cpus = "1.16.0"
-core_affinity = { version = "0.8.1", optional = true }
+core_affinity = { version = "0.8", optional = true }
+crossbeam-utils = { version = "0.8", optional = true }
 derivative = { version = "2.2", optional = true }
 
 [target.'cfg(unix)'.dependencies]
@@ -56,10 +57,10 @@ slab = "0.4"
 preemptive = []
 
 # Provide net API abstraction and implementation.
-net = ["polling", "mio", "core_affinity"]
+net = ["polling", "mio", "derivative", "crossbeam-utils", "core_affinity"]
 
 # Provide io_uring adaptation, this feature only works in linux.
-io_uring = ["net", "io-uring", "derivative"]
+io_uring = ["net", "io-uring"]
 
 # Provide syscall implementation.
 syscall = ["net"]

@@ -3,7 +3,7 @@ use crate::common::constants::PoolState;
 use crate::common::traits::Current;
 use crate::net::selector::{Event, Events, Poller, Selector};
 use crate::{impl_current_for, impl_display_by_debug};
-use std::cell::Cell;
+use crossbeam_utils::atomic::AtomicCell;
 use std::ffi::{c_char, c_int, c_void, CStr};
 use std::io::{Error, ErrorKind};
 use std::marker::PhantomData;
@@ -23,7 +23,7 @@ cfg_if::cfg_if! {
 #[derive(Debug)]
 pub(super) struct EventLoop<'e> {
     //状态
-    state: Cell<PoolState>,
+    state: AtomicCell<PoolState>,
     stop: Arc<(Mutex<bool>, Condvar)>,
     shared_stop: Arc<(Mutex<AtomicUsize>, Condvar)>,
     cpu: usize,
@@ -42,19 +42,19 @@ impl EventLoop<'_> {
     }
 
     fn state(&self) -> PoolState {
-        self.state.get()
+        self.state.load()
     }
 
     fn stopping(&self) -> std::io::Result<PoolState> {
         if PoolState::Stopped == self.state() {
             return Err(Error::new(ErrorKind::Other, "unexpect state"));
         }
-        Ok(self.state.replace(PoolState::Stopping))
+        Ok(self.state.swap(PoolState::Stopping))
     }
 
     fn stopped(&self) -> std::io::Result<PoolState> {
         if PoolState::Stopping == self.state() {
-            return Ok(self.state.replace(PoolState::Stopped));
+            return Ok(self.state.swap(PoolState::Stopped));
         }
         Err(Error::new(ErrorKind::Other, "unexpect state"))
     }
@@ -66,7 +66,7 @@ impl<'e> EventLoop<'e> {
         shared_stop: Arc<(Mutex<AtomicUsize>, Condvar)>,
     ) -> std::io::Result<Self> {
         Ok(EventLoop {
-            state: Cell::new(PoolState::Running),
+            state: AtomicCell::new(PoolState::Running),
             stop: Arc::new((Mutex::new(false), Condvar::new())),
             shared_stop,
             cpu,

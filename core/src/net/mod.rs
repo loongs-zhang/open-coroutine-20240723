@@ -27,7 +27,7 @@ mod event_loop;
 #[allow(missing_docs)]
 pub mod config;
 
-static mut INSTANCE: OnceCell<EventLoops> = OnceCell::new();
+static INSTANCE: OnceCell<EventLoops> = OnceCell::new();
 
 /// The manager for `EventLoop`.
 #[repr(C)]
@@ -41,20 +41,18 @@ pub struct EventLoops {
 impl EventLoops {
     /// Init the `EventLoops`.
     pub fn init(config: &Config) {
-        unsafe {
-            _ = INSTANCE.get_or_init(|| {
-                let loops = Self::new(
-                    config.event_loop_size(),
-                    config.stack_size(),
-                    config.min_size(),
-                    config.max_size(),
-                    config.keep_alive_time(),
-                )
-                .expect("init default EventLoops failed !");
-                eprintln!("open-coroutine init with {config:#?}");
-                loops
-            });
-        }
+        _ = INSTANCE.get_or_init(|| {
+            let loops = Self::new(
+                config.event_loop_size(),
+                config.stack_size(),
+                config.min_size(),
+                config.max_size(),
+                config.keep_alive_time(),
+            )
+            .expect("init default EventLoops failed !");
+            eprintln!("open-coroutine init with {config:#?}");
+            loops
+        });
     }
 
     /// Create a new `EventLoops`.
@@ -78,7 +76,7 @@ impl EventLoops {
     }
 
     fn round_robin() -> &'static Arc<EventLoop<'static>> {
-        let instance = unsafe { INSTANCE.get().expect("EventLoops not init !") };
+        let instance = INSTANCE.get().expect("EventLoops not init !");
         let index = instance.index.fetch_add(1, Ordering::Release) % instance.loops.len();
         instance
             .loops
@@ -128,7 +126,7 @@ impl EventLoops {
         if let Some(event_loop) = EventLoop::current() {
             event_loop.del_event(fd)?;
         } else {
-            let instance = unsafe { INSTANCE.get().expect("EventLoops not init !") };
+            let instance = INSTANCE.get().expect("EventLoops not init !");
             for event_loop in &instance.loops {
                 event_loop.del_event(fd)?;
             }
@@ -142,7 +140,7 @@ impl EventLoops {
         if let Some(event_loop) = EventLoop::current() {
             event_loop.del_read_event(fd)?;
         } else {
-            let instance = unsafe { INSTANCE.get().expect("EventLoops not init !") };
+            let instance = INSTANCE.get().expect("EventLoops not init !");
             for event_loop in &instance.loops {
                 event_loop.del_read_event(fd)?;
             }
@@ -156,7 +154,7 @@ impl EventLoops {
         if let Some(event_loop) = EventLoop::current() {
             event_loop.del_write_event(fd)?;
         } else {
-            let instance = unsafe { INSTANCE.get().expect("EventLoops not init !") };
+            let instance = INSTANCE.get().expect("EventLoops not init !");
             for event_loop in &instance.loops {
                 event_loop.del_write_event(fd)?;
             }
@@ -166,8 +164,8 @@ impl EventLoops {
 
     /// Stop all `EventLoop`.
     pub fn stop(wait_time: Duration) -> std::io::Result<()> {
-        if let Some(instance) = unsafe { INSTANCE.take() } {
-            for i in instance.loops {
+        if let Some(instance) = INSTANCE.get() {
+            for i in &instance.loops {
                 _ = i.stop(Duration::ZERO);
             }
             let (lock, cvar) = &*instance.shared_stop;

@@ -1,7 +1,8 @@
+use crossbeam_utils::atomic::AtomicCell;
+use derivative::Derivative;
 use mio::event::Event;
 use mio::unix::SourceFd;
 use mio::{Events, Interest, Poll, Token};
-use std::cell::UnsafeCell;
 use std::ffi::c_int;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -44,17 +45,19 @@ impl super::EventIterator<Event> for Events {
     }
 }
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub(crate) struct Poller {
     waiting: AtomicBool,
-    inner: UnsafeCell<Poll>,
+    #[derivative(Debug = "ignore")]
+    inner: AtomicCell<Poll>,
 }
 
 impl Poller {
     pub(crate) fn new() -> std::io::Result<Self> {
         Ok(Self {
             waiting: AtomicBool::new(false),
-            inner: UnsafeCell::new(Poll::new()?),
+            inner: AtomicCell::new(Poll::new()?),
         })
     }
 }
@@ -63,7 +66,7 @@ impl Deref for Poller {
     type Target = Poll;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*self.inner.get() }
+        unsafe { &*self.inner.as_ptr() }
     }
 }
 
@@ -76,7 +79,7 @@ impl super::Selector<Interest, Event, Events> for Poller {
         {
             return Ok(());
         }
-        let inner = unsafe { &mut *self.inner.get() };
+        let inner = unsafe { &mut *self.inner.as_ptr() };
         let result = inner.poll(events, timeout);
         self.waiting.store(false, Ordering::Release);
         result
