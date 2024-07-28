@@ -81,7 +81,6 @@ jobs:
 
           - target: x86_64-pc-windows-gnu
             os: windows-latest
-            # retour only supports nightly
           - target: i686-pc-windows-gnu
             os: windows-latest
 #          - target: x86_64-pc-windows-msvc

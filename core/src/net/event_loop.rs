@@ -1,5 +1,5 @@
 use crate::common::beans::BeanFactory;
-use crate::common::constants::{PoolState, Syscall};
+use crate::common::constants::PoolState;
 use crate::common::traits::Current;
 use crate::net::selector::{Event, Events, Poller, Selector};
 use crate::{impl_current_for, impl_display_by_debug};
@@ -38,7 +38,7 @@ pub(super) struct EventLoop<'e> {
     phantom_data: PhantomData<&'e EventLoop<'e>>,
 }
 
-static THREAD_TOKENS: Lazy<DashSet<usize>> = Lazy::new(DashSet::new);
+static COROUTINE_TOKENS: Lazy<DashSet<usize>> = Lazy::new(DashSet::new);
 
 impl EventLoop<'_> {
     pub(crate) fn get_name(&self) -> String {
@@ -84,7 +84,7 @@ impl<'e> EventLoop<'e> {
     }
 
     #[allow(trivial_numeric_casts, clippy::cast_possible_truncation)]
-    fn token(syscall: Syscall) -> usize {
+    fn token() -> usize {
         //todo coroutine
         unsafe {
             cfg_if::cfg_if! {
@@ -94,10 +94,7 @@ impl<'e> EventLoop<'e> {
                     let thread_id = libc::pthread_self();
                 }
             }
-            let syscall_mask = <Syscall as Into<&str>>::into(syscall).as_ptr() as usize;
-            let token = thread_id as usize ^ syscall_mask;
-            _ = THREAD_TOKENS.insert(token);
-            token
+            thread_id as usize
         }
     }
 
@@ -107,13 +104,11 @@ impl<'e> EventLoop<'e> {
     }
 
     pub(super) fn add_read_event(&self, fd: c_int) -> std::io::Result<()> {
-        self.selector
-            .add_read_event(fd, EventLoop::token(Syscall::nio()))
+        self.selector.add_read_event(fd, EventLoop::token())
     }
 
     pub(super) fn add_write_event(&self, fd: c_int) -> std::io::Result<()> {
-        self.selector
-            .add_write_event(fd, EventLoop::token(Syscall::nio()))
+        self.selector.add_write_event(fd, EventLoop::token())
     }
 
     pub(super) fn del_event(&self, fd: c_int) -> std::io::Result<()> {
@@ -163,12 +158,11 @@ impl<'e> EventLoop<'e> {
 
     #[allow(clippy::unused_self)]
     unsafe fn resume(&self, token: usize) {
-        if THREAD_TOKENS.get(&token).is_some() {
+        if COROUTINE_TOKENS.remove(&token).is_none() {
             return;
         }
-        if let Ok(_co_name) = CStr::from_ptr((token as *const c_void).cast::<c_char>()).to_str() {
-            //todo coroutine
-        }
+        //todo coroutine
+        if let Ok(_co_name) = CStr::from_ptr((token as *const c_void).cast::<c_char>()).to_str() {}
     }
 
     pub(super) fn start(self) -> std::io::Result<Arc<Self>>
@@ -300,7 +294,7 @@ macro_rules! impl_io_uring {
                 &self,
                 $($arg: $arg_type),*
             ) -> std::io::Result<usize> {
-                let token = EventLoop::token(Syscall::$syscall);
+                let token = EventLoop::token();
                 self.operator
                     .$syscall(token, $($arg, )*)
                     .map(|()| token)
