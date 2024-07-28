@@ -86,6 +86,32 @@ pub enum Syscall {
     openat,
 }
 
+impl Syscall {
+    /// Get the `NIO` syscall.
+    pub fn nio() -> Self {
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "linux")] {
+                Self::epoll_wait
+            } else if #[cfg(any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "tvos",
+                target_os = "watchos",
+                target_os = "freebsd",
+                target_os = "dragonfly",
+                target_os = "openbsd",
+                target_os = "netbsd"
+            ))] {
+                Self::kevent
+            } else if #[cfg(windows)] {
+                Self::iocp
+            } else {
+                compile_error!("unsupported")
+            }
+        }
+    }
+}
+
 impl_display_by_debug!(Syscall);
 
 impl<'s> From<Syscall> for &'s str {
