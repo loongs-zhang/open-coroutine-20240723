@@ -4,6 +4,8 @@ use crate::common::traits::Current;
 use crate::net::selector::{Event, Events, Poller, Selector};
 use crate::{impl_current_for, impl_display_by_debug};
 use crossbeam_utils::atomic::AtomicCell;
+use dashmap::DashSet;
+use once_cell::sync::Lazy;
 use std::ffi::{c_char, c_int, c_void, CStr};
 use std::io::{Error, ErrorKind};
 use std::marker::PhantomData;
@@ -36,9 +38,11 @@ pub(super) struct EventLoop<'e> {
     phantom_data: PhantomData<&'e EventLoop<'e>>,
 }
 
+static THREAD_TOKENS: Lazy<DashSet<usize>> = Lazy::new(DashSet::new);
+
 impl EventLoop<'_> {
     pub(crate) fn get_name(&self) -> String {
-        format!("{}", self.cpu)
+        format!("event-loop-{}", self.cpu)
     }
 
     fn state(&self) -> PoolState {
@@ -90,7 +94,9 @@ impl<'e> EventLoop<'e> {
                     let thread_id = libc::pthread_self();
                 }
             }
-            thread_id as usize
+            let token = thread_id as usize;
+            _ = THREAD_TOKENS.insert(token);
+            token
         }
     }
 
@@ -154,7 +160,7 @@ impl<'e> EventLoop<'e> {
 
     #[allow(clippy::unused_self)]
     unsafe fn resume(&self, token: usize) {
-        if token == 0 {
+        if THREAD_TOKENS.remove(&token).is_some() {
             return;
         }
         if let Ok(_co_name) = CStr::from_ptr((token as *const c_void).cast::<c_char>()).to_str() {
