@@ -3,7 +3,6 @@
     // https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
     anonymous_parameters,
     bare_trait_objects,
-    // box_pointers, // use box pointer to allocate on heap
     // elided_lifetimes_in_paths, // allow anonymous lifetime
     missing_copy_implementations,
     missing_debug_implementations,
@@ -48,6 +47,11 @@
 )]
 //! see `https://github.com/acl-dev/open-coroutine`
 
+use open_coroutine_core::net::config::Config;
+use open_coroutine_core::net::EventLoops;
+use std::ffi::{c_int, c_uint};
+use std::time::Duration;
+
 #[allow(
     dead_code,
     missing_docs,
@@ -61,3 +65,19 @@
     trivial_numeric_casts
 )]
 pub mod syscall;
+
+/// Start the framework.
+#[no_mangle]
+pub extern "C" fn open_coroutine_init(config: Config) -> c_int {
+    EventLoops::init(&config);
+    0
+}
+
+/// Stop the framework.
+#[no_mangle]
+pub extern "C" fn open_coroutine_stop(secs: c_uint) -> c_int {
+    if EventLoops::stop(Duration::from_secs(u64::from(secs))).is_ok() {
+        return 0;
+    }
+    -1
+}

@@ -1,9 +1,9 @@
-use std::io::{ErrorKind, IoSlice, IoSliceMut, Read, Write};
-use std::net::{Shutdown, TcpListener, TcpStream, ToSocketAddrs};
+use std::io::{Error, ErrorKind, IoSlice, IoSliceMut, Read, Write};
+use std::net::{Shutdown, TcpListener, ToSocketAddrs};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
-pub fn start_server<A: ToSocketAddrs>(addr: A, server_finished: Arc<(Mutex<bool>, Condvar)>) {
+fn start_server<A: ToSocketAddrs>(addr: A, server_finished: Arc<(Mutex<bool>, Condvar)>) {
     let listener = TcpListener::bind(addr).expect("start server failed");
     for stream in listener.incoming() {
         let mut socket = stream.expect("accept new connection failed");
@@ -46,8 +46,9 @@ pub fn start_server<A: ToSocketAddrs>(addr: A, server_finished: Arc<(Mutex<bool>
     }
 }
 
-pub fn start_client<A: ToSocketAddrs>(addr: A) {
-    let mut stream = connect_timeout(addr, Duration::from_secs(3)).expect("connect failed");
+fn start_client<A: ToSocketAddrs>(addr: A) {
+    let mut stream =
+        open_coroutine::connect_timeout(addr, Duration::from_secs(3)).expect("connect failed");
     let mut buffer1 = [0; 256];
     for i in 0..3 {
         assert_eq!(
@@ -86,32 +87,35 @@ pub fn start_client<A: ToSocketAddrs>(addr: A) {
     println!("Client Closed");
 }
 
-fn connect_timeout<A: ToSocketAddrs>(addr: A, timeout: Duration) -> std::io::Result<TcpStream> {
-    let mut last_err = None;
-    for addr in addr.to_socket_addrs()? {
-        match TcpStream::connect_timeout(&addr, timeout) {
-            Ok(l) => return Ok(l),
-            Err(e) => last_err = Some(e),
-        }
-    }
-    Err(last_err.unwrap_or_else(|| {
-        std::io::Error::new(
-            ErrorKind::InvalidInput,
-            "could not resolve to any addresses",
+#[test]
+#[open_coroutine::main(event_loop_size = 1, max_size = 1)]
+fn main() -> std::io::Result<()> {
+    let addr = "127.0.0.1:8888";
+    let server_finished_pair = Arc::new((Mutex::new(true), Condvar::new()));
+    let server_finished = Arc::clone(&server_finished_pair);
+    _ = std::thread::Builder::new()
+        .name("crate_server".to_string())
+        .spawn(move || start_server(addr, server_finished_pair))
+        .expect("failed to spawn thread");
+    _ = std::thread::Builder::new()
+        .name("crate_client".to_string())
+        .spawn(move || start_client(addr))
+        .expect("failed to spawn thread");
+
+    let (lock, cvar) = &*server_finished;
+    let result = cvar
+        .wait_timeout_while(
+            lock.lock().unwrap(),
+            Duration::from_secs(30),
+            |&mut pending| pending,
         )
-    }))
-}
-
-fn now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("1970-01-01 00:00:00 UTC was {} seconds ago!")
-        .as_nanos() as u64
-}
-
-pub fn sleep_test(millis: u64) {
-    let start = now();
-    std::thread::sleep(Duration::from_millis(millis));
-    let end = now();
-    assert!(end - start >= millis, "Time consumption less than expected");
+        .unwrap();
+    if result.1.timed_out() {
+        Err(Error::new(
+            ErrorKind::Other,
+            "The service did not completed within the specified time",
+        ))
+    } else {
+        Ok(())
+    }
 }

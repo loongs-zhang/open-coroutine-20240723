@@ -23,7 +23,7 @@ if [ "${TARGET}" = "x86_64-unknown-linux-gnu" ]; then
     "${CARGO}" test --target "${TARGET}" --no-default-features --features io_uring --release
 fi
 
-# test examples
-cd "${PROJECT_DIR}"/examples
+# test open-coroutine
+cd "${PROJECT_DIR}"/open-coroutine
 "${CARGO}" test --target "${TARGET}"
 "${CARGO}" test --target "${TARGET}" --release

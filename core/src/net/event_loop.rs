@@ -236,7 +236,7 @@ impl<'e> EventLoop<'e> {
     // pub(super) fn stop_sync(&mut self, wait_time: Duration) -> std::io::Result<()> {
     //     match self.state() {
     //         PoolState::Running => {
-    //             assert_eq!(PoolState::Stopping, self.stopping()?);
+    //             assert_eq!(PoolState::Running, self.stopping()?);
     //             let mut left = wait_time;
     //             let once = Duration::from_millis(10);
     //             loop {
@@ -245,7 +245,7 @@ impl<'e> EventLoop<'e> {
     //                 }
     //                 self.wait_event(Some(left.min(once)))?;
     //                 if self.pool.is_empty() && self.pool.get_running_size() == 0 {
-    //                     assert_eq!(PoolState::Stopped, self.stopped()?);
+    //                     assert_eq!(PoolState::Stopping, self.stopped()?);
     //                     return Ok(());
     //                 }
     //                 left = left.saturating_sub(once);
@@ -260,7 +260,7 @@ impl<'e> EventLoop<'e> {
         match self.state() {
             PoolState::Running => {
                 if BeanFactory::remove_bean::<JoinHandle<()>>(&self.get_thread_name()).is_some() {
-                    assert_eq!(PoolState::Stopping, self.stopping()?);
+                    assert_eq!(PoolState::Running, self.stopping()?);
                     //开启了单独的线程
                     let (lock, cvar) = &*self.stop;
                     let result = cvar
@@ -269,7 +269,7 @@ impl<'e> EventLoop<'e> {
                     if result.1.timed_out() {
                         return Err(Error::new(ErrorKind::TimedOut, "stop timeout !"));
                     }
-                    assert_eq!(PoolState::Stopped, self.stopped()?);
+                    assert_eq!(PoolState::Stopping, self.stopped()?);
                 }
                 Ok(())
             }
