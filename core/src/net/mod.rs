@@ -1,11 +1,12 @@
 use crate::common::traits::Current;
 use crate::net::config::Config;
 use crate::net::event_loop::EventLoop;
+use once_cell::sync::OnceCell;
 use std::collections::VecDeque;
 use std::ffi::c_int;
 use std::io::{Error, ErrorKind};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Condvar, Mutex, OnceLock};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 cfg_if::cfg_if! {
@@ -26,7 +27,7 @@ mod event_loop;
 #[allow(missing_docs)]
 pub mod config;
 
-static mut INSTANCE: OnceLock<EventLoops> = OnceLock::new();
+static mut INSTANCE: OnceCell<EventLoops> = OnceCell::new();
 
 /// The manager for `EventLoop`.
 #[repr(C)]
