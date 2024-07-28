@@ -48,30 +48,24 @@ pub extern "C" fn set_errno(errno: c_int) {
 
 /// # Panics
 /// if set fails.
-pub extern "C" fn set_non_blocking(socket: c_int) {
-    assert!(
-        set_non_blocking_flag(socket, true),
-        "set_non_blocking failed !"
-    );
+pub extern "C" fn set_non_blocking(fd: c_int) {
+    assert!(set_non_blocking_flag(fd, true), "set_non_blocking failed !");
 }
 
 /// # Panics
 /// if set fails.
-pub extern "C" fn set_blocking(socket: c_int) {
-    assert!(
-        set_non_blocking_flag(socket, false),
-        "set_blocking failed !"
-    );
+pub extern "C" fn set_blocking(fd: c_int) {
+    assert!(set_non_blocking_flag(fd, false), "set_blocking failed !");
 }
 
-extern "C" fn set_non_blocking_flag(socket: c_int, on: bool) -> bool {
-    let flags = unsafe { libc::fcntl(socket, libc::F_GETFL) };
+extern "C" fn set_non_blocking_flag(fd: c_int, on: bool) -> bool {
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
     if flags < 0 {
         return false;
     }
     unsafe {
         libc::fcntl(
-            socket,
+            fd,
             libc::F_SETFL,
             if on {
                 flags | libc::O_NONBLOCK
@@ -83,13 +77,13 @@ extern "C" fn set_non_blocking_flag(socket: c_int, on: bool) -> bool {
 }
 
 #[must_use]
-pub extern "C" fn is_blocking(socket: c_int) -> bool {
-    !is_non_blocking(socket)
+pub extern "C" fn is_blocking(fd: c_int) -> bool {
+    !is_non_blocking(fd)
 }
 
 #[must_use]
-pub extern "C" fn is_non_blocking(socket: c_int) -> bool {
-    let flags = unsafe { libc::fcntl(socket, libc::F_GETFL) };
+pub extern "C" fn is_non_blocking(fd: c_int) -> bool {
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
     if flags < 0 {
         return false;
     }

@@ -36,9 +36,9 @@ impl_hook!(NANOSLEEP, nanosleep(rqtp: *const timespec, rmtp: *mut timespec) -> c
 impl_hook!(POLL, poll(fds: *mut pollfd, nfds: nfds_t, timeout: c_int) -> c_int);
 impl_hook!(SELECT, select(nfds: c_int, readfds: *mut fd_set, writefds: *mut fd_set, errorfds: *mut fd_set, timeout: *mut timeval) -> c_int);
 impl_hook!(SOCKET, socket(domain: c_int, type_: c_int, protocol: c_int) -> c_int);
-impl_hook!(CONNECT, connect(socket: c_int, address: *const sockaddr, len: socklen_t) -> c_int);
-impl_hook!(LISTEN, listen(socket: c_int, backlog: c_int) -> c_int);
-impl_hook!(ACCEPT, accept(socket: c_int, address: *mut sockaddr, address_len: *mut socklen_t) -> c_int);
+impl_hook!(CONNECT, connect(fd: c_int, address: *const sockaddr, len: socklen_t) -> c_int);
+impl_hook!(LISTEN, listen(fd: c_int, backlog: c_int) -> c_int);
+impl_hook!(ACCEPT, accept(fd: c_int, address: *mut sockaddr, address_len: *mut socklen_t) -> c_int);
 #[cfg(any(
     target_os = "linux",
     target_os = "l4re",
@@ -46,15 +46,15 @@ impl_hook!(ACCEPT, accept(socket: c_int, address: *mut sockaddr, address_len: *m
     target_os = "emscripten"
 ))]
 impl_hook!(ACCEPT4, accept4(fd: c_int, addr: *mut sockaddr, len: *mut socklen_t, flg: c_int) -> c_int);
-impl_hook!(SHUTDOWN, shutdown(socket: c_int, how: c_int) -> c_int);
-impl_hook!(RECV, recv(socket: c_int, buf: *mut c_void, len: size_t, flags: c_int) -> ssize_t);
-impl_hook!(RECVFROM, recvfrom(socket: c_int, buf: *mut c_void, len: size_t, flags: c_int, addr: *mut sockaddr, addrlen: *mut socklen_t) -> ssize_t);
+impl_hook!(SHUTDOWN, shutdown(fd: c_int, how: c_int) -> c_int);
+impl_hook!(RECV, recv(fd: c_int, buf: *mut c_void, len: size_t, flags: c_int) -> ssize_t);
+impl_hook!(RECVFROM, recvfrom(fd: c_int, buf: *mut c_void, len: size_t, flags: c_int, addr: *mut sockaddr, addrlen: *mut socklen_t) -> ssize_t);
 impl_hook!(PREAD, pread(fd: c_int, buf: *mut c_void, count: size_t, offset: off_t) -> ssize_t);
 impl_hook!(READV, readv(fd: c_int, iov: *const iovec, iovcnt: c_int) -> ssize_t);
 impl_hook!(PREADV, preadv(fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off_t) -> ssize_t);
 impl_hook!(RECVMSG, recvmsg(fd: c_int, msg: *mut msghdr, flags: c_int) -> ssize_t);
-impl_hook!(SEND, send(socket: c_int, buf: *const c_void, len: size_t, flags: c_int) -> ssize_t);
-impl_hook!(SENDTO, sendto(socket: c_int, buf: *const c_void, len: size_t, flags: c_int, addr: *const sockaddr, addrlen: socklen_t) -> ssize_t);
+impl_hook!(SEND, send(fd: c_int, buf: *const c_void, len: size_t, flags: c_int) -> ssize_t);
+impl_hook!(SENDTO, sendto(fd: c_int, buf: *const c_void, len: size_t, flags: c_int, addr: *const sockaddr, addrlen: socklen_t) -> ssize_t);
 impl_hook!(PWRITE, pwrite(fd: c_int, buf: *const c_void, count: size_t, offset: off_t) -> ssize_t);
 impl_hook!(WRITEV, writev(fd: c_int, iov: *const iovec, iovcnt: c_int) -> ssize_t);
 impl_hook!(PWRITEV, pwritev(fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off_t) -> ssize_t);

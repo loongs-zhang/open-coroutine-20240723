@@ -212,6 +212,7 @@ impl_io_uring!(epoll_ctl(epfd: c_int, op: c_int, fd: c_int, event: *mut epoll_ev
 impl_io_uring!(socket(domain: c_int, ty: c_int, protocol: c_int) -> c_int);
 impl_io_uring!(accept(fd: c_int, addr: *mut sockaddr, len: *mut socklen_t) -> c_int);
 impl_io_uring!(accept4(fd: c_int, addr: *mut sockaddr, len: *mut socklen_t, flg: c_int) -> c_int);
+impl_io_uring!(shutdown(fd: c_int, how: c_int) -> c_int);
 impl_io_uring!(connect(fd: c_int, address: *const sockaddr, len: socklen_t) -> c_int);
 impl_io_uring!(close(fd: c_int) -> c_int);
 impl_io_uring!(recv(fd: c_int, buf: *mut c_void, len: size_t, flags: c_int) -> ssize_t);

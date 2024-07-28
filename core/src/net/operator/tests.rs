@@ -37,6 +37,7 @@ impl AcceptCount {
     fn new(fd: RawFd, token: usize, count: usize) -> AcceptCount {
         AcceptCount {
             entry: opcode::Accept::new(types::Fd(fd), ptr::null_mut(), ptr::null_mut())
+                .flags(libc::SOCK_CLOEXEC)
                 .build()
                 .user_data(token as _),
             count,
@@ -293,11 +294,12 @@ fn crate_server2(port: u16, server_started: Arc<AtomicBool>) -> anyhow::Result<(
     println!("listen {}", listener.local_addr()?);
     server_started.store(true, Ordering::Release);
 
-    operator.accept(
+    operator.accept4(
         token_alloc.insert(Token::Accept),
         listener.as_raw_fd(),
         ptr::null_mut(),
         ptr::null_mut(),
+        libc::SOCK_CLOEXEC,
     )?;
 
     loop {
