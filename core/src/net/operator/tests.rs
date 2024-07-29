@@ -13,9 +13,6 @@ use std::{io, ptr};
 #[derive(Clone, Debug)]
 enum Token {
     Accept,
-    Poll {
-        fd: RawFd,
-    },
     Read {
         fd: RawFd,
         buf_index: usize,
@@ -129,19 +126,6 @@ fn crate_server(port: u16, server_started: Arc<AtomicBool>) -> anyhow::Result<()
                     accept.count += 1;
 
                     let fd = ret;
-                    let poll_token = token_alloc.insert(Token::Poll { fd });
-
-                    let poll_e = opcode::PollAdd::new(types::Fd(fd), libc::POLLIN as _)
-                        .build()
-                        .user_data(poll_token as _);
-
-                    unsafe {
-                        if sq.push(&poll_e).is_err() {
-                            backlog.push_back(poll_e);
-                        }
-                    }
-                }
-                Token::Poll { fd } => {
                     let (buf_index, buf) = match bufpool.pop() {
                         Some(buf_index) => (buf_index, &mut buf_alloc[buf_index]),
                         None => {
@@ -206,9 +190,19 @@ fn crate_server(port: u16, server_started: Arc<AtomicBool>) -> anyhow::Result<()
                     let entry = if offset + write_len >= len {
                         bufpool.push(buf_index);
 
-                        *token = Token::Poll { fd };
+                        let (buf_index, buf) = match bufpool.pop() {
+                            Some(buf_index) => (buf_index, &mut buf_alloc[buf_index]),
+                            None => {
+                                let buf = vec![0u8; 2048].into_boxed_slice();
+                                let buf_entry = buf_alloc.vacant_entry();
+                                let buf_index = buf_entry.key();
+                                (buf_index, buf_entry.insert(buf))
+                            }
+                        };
 
-                        opcode::PollAdd::new(types::Fd(fd), libc::POLLIN as _)
+                        *token = Token::Read { fd, buf_index };
+
+                        opcode::Recv::new(types::Fd(fd), buf.as_mut_ptr(), buf.len() as _)
                             .build()
                             .user_data(token_index as _)
                     } else {
@@ -324,11 +318,6 @@ fn crate_server2(port: u16, server_started: Arc<AtomicBool>) -> anyhow::Result<(
                     println!("accept");
 
                     let fd = ret;
-                    let poll_token = token_alloc.insert(Token::Poll { fd });
-
-                    operator.poll_add(poll_token, fd, libc::POLLIN as _)?;
-                }
-                Token::Poll { fd } => {
                     let (buf_index, buf) = match bufpool.pop() {
                         Some(buf_index) => (buf_index, &mut buf_alloc[buf_index]),
                         None => {
@@ -377,9 +366,19 @@ fn crate_server2(port: u16, server_started: Arc<AtomicBool>) -> anyhow::Result<(
                     if offset + write_len >= len {
                         bufpool.push(buf_index);
 
-                        *token = Token::Poll { fd };
+                        let (buf_index, buf) = match bufpool.pop() {
+                            Some(buf_index) => (buf_index, &mut buf_alloc[buf_index]),
+                            None => {
+                                let buf = vec![0u8; 2048].into_boxed_slice();
+                                let buf_entry = buf_alloc.vacant_entry();
+                                let buf_index = buf_entry.key();
+                                (buf_index, buf_entry.insert(buf))
+                            }
+                        };
 
-                        operator.poll_add(token_index, fd, libc::POLLIN as _)?;
+                        *token = Token::Read { fd, buf_index };
+
+                        operator.recv(token_index, fd, buf.as_mut_ptr() as _, buf.len(), 0)?;
                     } else {
                         let offset = offset + write_len;
                         let len = len - offset;

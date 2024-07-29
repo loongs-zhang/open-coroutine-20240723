@@ -109,9 +109,10 @@ impl Operator<'_> {
         Err(Error::new(ErrorKind::Unsupported, "unsupported"))
     }
 
-    fn do_select(&self, _timeout: Option<Duration>) -> std::io::Result<(usize, CompletionQueue)> {
+    fn do_select(&self, timeout: Option<Duration>) -> std::io::Result<(usize, CompletionQueue)> {
+        self.timeout_add(crate::common::constants::IO_URING_TIMEOUT_USERDATA, timeout)?;
         let mut cq = unsafe { self.inner.completion_shared() };
-        let count = match self.inner.submit_and_wait(0) {
+        let count = match self.inner.submit_and_wait(1) {
             Ok(count) => count,
             Err(err) => {
                 if err.raw_os_error() == Some(EBUSY) {

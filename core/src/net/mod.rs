@@ -191,18 +191,12 @@ macro_rules! impl_io_uring {
     ( $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
         #[cfg(all(target_os = "linux", feature = "io_uring"))]
         impl EventLoops {
-            #[allow(missing_docs, trivial_numeric_casts)]
+            #[allow(missing_docs)]
             pub fn $syscall(
                 $($arg: $arg_type),*
             ) -> std::io::Result<$result> {
-                let event_loop = EventLoop::current().unwrap_or_else(|| Self::round_robin());
-                let token = event_loop.$syscall($($arg, )*)?;
-                loop {
-                    if let Some(syscall_result) = event_loop.try_get_syscall_result(token) {
-                        return Ok(syscall_result as _);
-                    }
-                    event_loop.wait_just(Some(Duration::from_millis(10)))?;
-                }
+                EventLoop::current().unwrap_or_else(|| Self::round_robin())
+                    .$syscall($($arg, )*)
             }
         }
     }

@@ -17,19 +17,20 @@ export RUST_BACKTRACE=1
 
 # test open-coroutine-core mod
 cd "${PROJECT_DIR}"/core
-if [ "${TARGET}" = "x86_64-unknown-linux-gnu" ]; then
-    # test io_uring
-    "${CARGO}" test --target "${TARGET}" --no-default-features --features io_uring
-    "${CARGO}" test --target "${TARGET}" --no-default-features --features io_uring --release
-fi
+"${CARGO}" test --target "${TARGET}"
+"${CARGO}" test --target "${TARGET}" --release
 
 # test open-coroutine
 cd "${PROJECT_DIR}"/open-coroutine
 "${CARGO}" test --target "${TARGET}"
 "${CARGO}" test --target "${TARGET}" --release
 
+# test io_uring
 if [ "${TARGET}" = "x86_64-unknown-linux-gnu" ]; then
-    # test io_uring
+    cd "${PROJECT_DIR}"/core
+    "${CARGO}" test --target "${TARGET}" --no-default-features --features io_uring
+    "${CARGO}" test --target "${TARGET}" --no-default-features --features io_uring --release
+    cd "${PROJECT_DIR}"/open-coroutine
     "${CARGO}" test --target "${TARGET}" --features io_uring
     "${CARGO}" test --target "${TARGET}" --features io_uring --release
 fi

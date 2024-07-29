@@ -1,5 +1,5 @@
 use crate::common::beans::BeanFactory;
-use crate::common::constants::PoolState;
+use crate::common::constants::{PoolState, Syscall};
 use crate::common::traits::Current;
 use crate::net::selector::{Event, Events, Poller, Selector};
 use crate::{impl_current_for, impl_display_by_debug};
@@ -84,7 +84,7 @@ impl<'e> EventLoop<'e> {
     }
 
     #[allow(trivial_numeric_casts, clippy::cast_possible_truncation)]
-    fn token() -> usize {
+    fn token(syscall: Syscall) -> usize {
         //todo coroutine
         unsafe {
             cfg_if::cfg_if! {
@@ -94,21 +94,28 @@ impl<'e> EventLoop<'e> {
                     let thread_id = libc::pthread_self();
                 }
             }
-            thread_id as usize
+            let syscall_mask = <Syscall as Into<&str>>::into(syscall).as_ptr() as usize;
+            let token = thread_id as usize ^ syscall_mask;
+            if Syscall::nio() != syscall {
+                eprintln!("{syscall} {token}");
+            }
+            token
         }
     }
 
     #[cfg(all(target_os = "linux", feature = "io_uring"))]
-    pub(super) fn try_get_syscall_result(&self, token: usize) -> Option<ssize_t> {
+    fn try_get_syscall_result(&self, token: usize) -> Option<ssize_t> {
         self.result_table.remove(&token).map(|(_, result)| result)
     }
 
     pub(super) fn add_read_event(&self, fd: c_int) -> std::io::Result<()> {
-        self.selector.add_read_event(fd, EventLoop::token())
+        self.selector
+            .add_read_event(fd, EventLoop::token(Syscall::nio()))
     }
 
     pub(super) fn add_write_event(&self, fd: c_int) -> std::io::Result<()> {
-        self.selector.add_write_event(fd, EventLoop::token())
+        self.selector
+            .add_write_event(fd, EventLoop::token(Syscall::nio()))
     }
 
     pub(super) fn del_event(&self, fd: c_int) -> std::io::Result<()> {
@@ -132,15 +139,19 @@ impl<'e> EventLoop<'e> {
         #[cfg(all(target_os = "linux", feature = "io_uring"))]
         if crate::net::operator::support_io_uring() {
             // use io_uring
-            let mut result = self.operator.select(timeout)?;
-            for cqe in &mut result.1 {
-                let token = cqe.user_data() as usize;
-                // resolve completed read/write tasks
-                assert!(self
-                    .result_table
-                    .insert(token, cqe.result() as ssize_t)
-                    .is_none());
-                unsafe { self.resume(token) };
+            let (count, mut cq) = self.operator.select(timeout)?;
+            if count > 0 {
+                for cqe in &mut cq {
+                    let token = cqe.user_data() as usize;
+                    if crate::common::constants::IO_URING_TIMEOUT_USERDATA == token {
+                        continue;
+                    }
+                    // resolve completed read/write tasks
+                    let result = cqe.result() as ssize_t;
+                    eprintln!("io_uring finish {token} {result}");
+                    _ = self.result_table.insert(token, result);
+                    unsafe { self.resume(token) };
+                }
             }
         }
 
@@ -286,6 +297,7 @@ impl_current_for!(EVENT_LOOP, EventLoop<'e>);
 
 impl_display_by_debug!(EventLoop<'e>);
 
+/// todo 参考NIO的实现，重构syscall中的io_uring实现
 macro_rules! impl_io_uring {
     ( $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
         #[cfg(all(target_os = "linux", feature = "io_uring"))]
@@ -293,11 +305,20 @@ macro_rules! impl_io_uring {
             pub(super) fn $syscall(
                 &self,
                 $($arg: $arg_type),*
-            ) -> std::io::Result<usize> {
-                let token = EventLoop::token();
-                self.operator
-                    .$syscall(token, $($arg, )*)
-                    .map(|()| token)
+            ) -> std::io::Result<$result> {
+                let token = EventLoop::token(Syscall::$syscall);
+                self.operator.$syscall(token, $($arg, )*)?;
+                loop {
+                    if let Some(syscall_result) = self.try_get_syscall_result(token) {
+                        #[allow(trivial_numeric_casts)]
+                        let mut r = syscall_result as _;
+                        if r < 0 {
+                            r = -1;
+                        }
+                        return Ok(r);
+                    }
+                    self.wait_just(Some(Duration::from_millis(10)))?;
+                }
             }
         }
     }
@@ -307,7 +328,24 @@ impl_io_uring!(epoll_ctl(epfd: c_int, op: c_int, fd: c_int, event: *mut epoll_ev
 impl_io_uring!(socket(domain: c_int, ty: c_int, protocol: c_int) -> c_int);
 impl_io_uring!(accept(fd: c_int, addr: *mut sockaddr, len: *mut socklen_t) -> c_int);
 impl_io_uring!(accept4(fd: c_int, addr: *mut sockaddr, len: *mut socklen_t, flg: c_int) -> c_int);
-impl_io_uring!(shutdown(fd: c_int, how: c_int) -> c_int);
+#[cfg(all(target_os = "linux", feature = "io_uring"))]
+impl EventLoop<'_> {
+    pub(super) fn shutdown(&self, fd: c_int, how: c_int) -> std::io::Result<c_int> {
+        let token = EventLoop::token(Syscall::shutdown);
+        self.operator.shutdown(token, fd, how)?;
+        loop {
+            if let Some(syscall_result) = self.try_get_syscall_result(token) {
+                #[allow(trivial_numeric_casts)]
+                let mut r = syscall_result as _;
+                if libc::ENOTCONN == r {
+                    r = 0;
+                }
+                return Ok(r);
+            }
+            self.wait_just(Some(Duration::from_millis(10)))?;
+        }
+    }
+}
 impl_io_uring!(connect(fd: c_int, address: *const sockaddr, len: socklen_t) -> c_int);
 impl_io_uring!(close(fd: c_int) -> c_int);
 impl_io_uring!(recv(fd: c_int, buf: *mut c_void, len: size_t, flags: c_int) -> ssize_t);
