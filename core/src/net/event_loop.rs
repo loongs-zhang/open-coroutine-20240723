@@ -319,7 +319,8 @@ macro_rules! impl_io_uring {
                         #[allow(trivial_numeric_casts, unused_mut)]
                         let mut r = syscall_result as _;
                         if r < 0 {
-                            panic!("{}->{r}", Syscall::$syscall);
+                            let errno = -r;
+                            panic!("{}->{errno}", Syscall::$syscall);
                         }
                         return Ok(r);
                     }
@@ -364,11 +365,12 @@ impl EventLoop<'_> {
             if let Some(syscall_result) = self.try_get_syscall_result(token) {
                 #[allow(trivial_numeric_casts, unused_mut)]
                 let mut r = syscall_result as _;
-                if libc::ECONNREFUSED == r {
-                    return Ok(-1);
-                }
                 if r < 0 {
-                    panic!("{}->{r}", Syscall::connect);
+                    let errno = -r;
+                    if libc::ECONNREFUSED == errno {
+                        return Ok(-1);
+                    }
+                    panic!("{}->{errno}", Syscall::connect);
                 }
                 return Ok(r);
             }
