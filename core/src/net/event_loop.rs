@@ -365,7 +365,7 @@ impl EventLoop<'_> {
                 #[allow(trivial_numeric_casts, unused_mut)]
                 let mut r = syscall_result as _;
                 if libc::ECONNREFUSED == r {
-                    return -1;
+                    return Ok(-1);
                 }
                 if r < 0 {
                     panic!(
