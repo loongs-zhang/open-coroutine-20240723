@@ -297,7 +297,7 @@ impl_current_for!(EVENT_LOOP, EventLoop<'e>);
 
 impl_display_by_debug!(EventLoop<'e>);
 
-/// todo 参考NIO的实现，重构syscall中的io_uring实现
+// todo 参考NIO的实现，重构syscall中的io_uring实现
 macro_rules! impl_io_uring {
     ( $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
         #[cfg(all(target_os = "linux", feature = "io_uring"))]
@@ -313,7 +313,7 @@ macro_rules! impl_io_uring {
                         #[allow(trivial_numeric_casts)]
                         let mut r = syscall_result as _;
                         if r < 0 {
-                            r = -1;
+                            return self.$syscall($($arg, )*);
                         }
                         return Ok(r);
                     }
