@@ -1,7 +1,4 @@
-use libc::{
-    fd_set, iovec, msghdr, nfds_t, off_t, pollfd, size_t, sockaddr, socklen_t, ssize_t, timespec,
-    timeval,
-};
+use libc::{fd_set, iovec, msghdr, off_t, size_t, sockaddr, socklen_t, ssize_t, timespec, timeval};
 use std::ffi::{c_int, c_uint, c_void};
 
 // check https://www.rustwiki.org.cn/en/reference/introduction.html for help information
@@ -33,7 +30,8 @@ macro_rules! impl_hook {
 impl_hook!(SLEEP, sleep(secs: c_uint) -> c_uint);
 impl_hook!(USLEEP, usleep(microseconds: c_uint) -> c_int);
 impl_hook!(NANOSLEEP, nanosleep(rqtp: *const timespec, rmtp: *mut timespec) -> c_int);
-impl_hook!(POLL, poll(fds: *mut pollfd, nfds: nfds_t, timeout: c_int) -> c_int);
+// NOTE: unhook poll due to mio's poller
+// impl_hook!(POLL, poll(fds: *mut pollfd, nfds: nfds_t, timeout: c_int) -> c_int);
 impl_hook!(SELECT, select(nfds: c_int, readfds: *mut fd_set, writefds: *mut fd_set, errorfds: *mut fd_set, timeout: *mut timeval) -> c_int);
 impl_hook!(SOCKET, socket(domain: c_int, type_: c_int, protocol: c_int) -> c_int);
 impl_hook!(CONNECT, connect(fd: c_int, address: *const sockaddr, len: socklen_t) -> c_int);

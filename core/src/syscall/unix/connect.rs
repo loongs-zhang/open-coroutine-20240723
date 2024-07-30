@@ -62,11 +62,11 @@ impl<I: ConnectSyscall> ConnectSyscall for NioConnectSyscall<I> {
             set_non_blocking(fd);
         }
         let mut r = self.inner.connect(fn_ptr, fd, address, len);
-        if r == 0 {
-            reset_errno();
-            return r;
-        }
         loop {
+            if r == 0 {
+                reset_errno();
+                break;
+            }
             let errno = Error::last_os_error().raw_os_error();
             if errno == Some(libc::EINPROGRESS) || errno == Some(libc::ENOTCONN) {
                 //阻塞，直到写事件发生
@@ -98,11 +98,6 @@ impl<I: ConnectSyscall> ConnectSyscall for NioConnectSyscall<I> {
                     let mut address = std::mem::zeroed();
                     let mut address_len = std::mem::zeroed();
                     r = libc::getpeername(fd, &mut address, &mut address_len);
-                }
-                if r == 0 {
-                    reset_errno();
-                    r = 0;
-                    break;
                 }
             } else if errno != Some(libc::EINTR) {
                 r = -1;
