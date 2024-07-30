@@ -344,6 +344,7 @@ impl EventLoop<'_> {
         self.operator.shutdown(token, fd, how)?;
         loop {
             if let Some(syscall_result) = self.try_get_syscall_result(token) {
+                #[allow(unused_mut)]
                 let mut r: c_int = syscall_result as _;
                 if r < 0 {
                     let errno: c_int = -r as _;
