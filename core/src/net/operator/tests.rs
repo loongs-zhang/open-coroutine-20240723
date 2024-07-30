@@ -297,7 +297,7 @@ fn crate_server2(port: u16, server_started: Arc<AtomicBool>) -> anyhow::Result<(
     )?;
 
     loop {
-        let (_, mut cq) = operator.select(None)?;
+        let (_, mut cq, _) = operator.select(None)?;
 
         for cqe in &mut cq {
             let ret = cqe.result();

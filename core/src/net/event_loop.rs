@@ -136,10 +136,12 @@ impl<'e> EventLoop<'e> {
     }
 
     pub(super) fn wait_just(&self, timeout: Option<Duration>) -> std::io::Result<()> {
+        #[allow(unused_mut)]
+        let mut left_time = timeout;
         #[cfg(all(target_os = "linux", feature = "io_uring"))]
         if crate::net::operator::support_io_uring() {
             // use io_uring
-            let (count, mut cq) = self.operator.select(timeout)?;
+            let (count, mut cq, left) = self.operator.select(timeout)?;
             if count > 0 {
                 for cqe in &mut cq {
                     let token = cqe.user_data() as usize;
@@ -153,11 +155,14 @@ impl<'e> EventLoop<'e> {
                     unsafe { self.resume(token) };
                 }
             }
+            if left != left_time {
+                left_time = Some(left.unwrap_or_else(|| Duration::ZERO));
+            }
         }
 
         // use epoll/kevent/iocp
         let mut events = Events::with_capacity(1024);
-        self.selector.select(&mut events, timeout)?;
+        self.selector.select(&mut events, left_time)?;
         for event in &events {
             let token = event.get_token();
             if event.readable() || event.writable() {
@@ -172,8 +177,9 @@ impl<'e> EventLoop<'e> {
         if COROUTINE_TOKENS.remove(&token).is_none() {
             return;
         }
-        //todo coroutine
-        if let Ok(_co_name) = CStr::from_ptr((token as *const c_void).cast::<c_char>()).to_str() {}
+        if let Ok(_co_name) = CStr::from_ptr((token as *const c_void).cast::<c_char>()).to_str() {
+            //todo coroutine
+        }
     }
 
     pub(super) fn start(self) -> std::io::Result<Arc<Self>>
@@ -313,6 +319,7 @@ macro_rules! impl_io_uring {
                         #[allow(trivial_numeric_casts, unused_mut)]
                         let mut r = syscall_result as _;
                         if r < 0 {
+                            eprintln!("{}->{r}", $crate::common::constants::Syscall::$syscall);
                             return self.$syscall($($arg, )*);
                         }
                         return Ok(r);

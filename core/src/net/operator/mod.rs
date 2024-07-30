@@ -15,7 +15,7 @@ use std::collections::VecDeque;
 use std::io::{Error, ErrorKind};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[cfg(test)]
 mod tests;
@@ -93,14 +93,14 @@ impl Operator<'_> {
     pub(crate) fn select(
         &self,
         timeout: Option<Duration>,
-    ) -> std::io::Result<(usize, CompletionQueue)> {
+    ) -> std::io::Result<(usize, CompletionQueue, Option<Duration>)> {
         if support_io_uring() {
             if self
                 .entering
                 .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
                 .is_err()
             {
-                return Ok((0, unsafe { self.inner.completion_shared() }));
+                return Ok((0, unsafe { self.inner.completion_shared() }, timeout));
             }
             let result = self.do_select(timeout);
             self.entering.store(false, Ordering::Release);
@@ -109,7 +109,11 @@ impl Operator<'_> {
         Err(Error::new(ErrorKind::Unsupported, "unsupported"))
     }
 
-    fn do_select(&self, timeout: Option<Duration>) -> std::io::Result<(usize, CompletionQueue)> {
+    fn do_select(
+        &self,
+        timeout: Option<Duration>,
+    ) -> std::io::Result<(usize, CompletionQueue, Option<Duration>)> {
+        let start_time = Instant::now();
         self.timeout_add(crate::common::constants::IO_URING_TIMEOUT_USERDATA, timeout)?;
         let mut cq = unsafe { self.inner.completion_shared() };
         // when submit queue is empty, submit_and_wait will block
@@ -152,7 +156,8 @@ impl Operator<'_> {
                 None => break,
             }
         }
-        Ok((count, cq))
+        let cost = Instant::now().saturating_duration_since(start_time);
+        Ok((count, cq, timeout.map(|t| t.saturating_sub(cost))))
     }
 
     pub(crate) fn async_cancel(&self, user_data: usize) -> std::io::Result<()> {
