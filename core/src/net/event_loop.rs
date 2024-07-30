@@ -319,8 +319,7 @@ macro_rules! impl_io_uring {
                         #[allow(trivial_numeric_casts, unused_mut)]
                         let mut r = syscall_result as _;
                         if r < 0 {
-                            eprintln!("{}->{r}", $crate::common::constants::Syscall::$syscall);
-                            return self.$syscall($($arg, )*);
+                            panic!("{}->{r}", $crate::common::constants::Syscall::$syscall);
                         }
                         return Ok(r);
                     }
