@@ -308,6 +308,7 @@ macro_rules! impl_io_uring {
     ( $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
         #[cfg(all(target_os = "linux", feature = "io_uring"))]
         impl EventLoop<'_> {
+            #[allow(trivial_numeric_casts)]
             pub(super) fn $syscall(
                 &self,
                 $($arg: $arg_type),*
@@ -316,10 +317,10 @@ macro_rules! impl_io_uring {
                 self.operator.$syscall(token, $($arg, )*)?;
                 loop {
                     if let Some(syscall_result) = self.try_get_syscall_result(token) {
-                        #[allow(trivial_numeric_casts, unused_mut)]
+                        #[allow(unused_mut)]
                         let mut r = syscall_result as _;
                         if r < 0 {
-                            let errno = -r;
+                            let errno: std::ffi::c_int = -r as _;
                             panic!("{}->{errno}", Syscall::$syscall);
                         }
                         return Ok(r);
@@ -337,12 +338,12 @@ impl_io_uring!(accept(fd: c_int, addr: *mut sockaddr, len: *mut socklen_t) -> c_
 impl_io_uring!(accept4(fd: c_int, addr: *mut sockaddr, len: *mut socklen_t, flg: c_int) -> c_int);
 #[cfg(all(target_os = "linux", feature = "io_uring"))]
 impl EventLoop<'_> {
+    #[allow(trivial_numeric_casts)]
     pub(super) fn shutdown(&self, fd: c_int, how: c_int) -> std::io::Result<c_int> {
         let token = EventLoop::token(Syscall::shutdown);
         self.operator.shutdown(token, fd, how)?;
         loop {
             if let Some(syscall_result) = self.try_get_syscall_result(token) {
-                #[allow(trivial_numeric_casts)]
                 let mut r = syscall_result as _;
                 if libc::ENOTCONN == r {
                     r = 0;
@@ -353,6 +354,7 @@ impl EventLoop<'_> {
         }
     }
 
+    #[allow(trivial_numeric_casts)]
     pub(super) fn connect(
         &self,
         fd: c_int,
@@ -363,10 +365,10 @@ impl EventLoop<'_> {
         self.operator.connect(token, fd, address, len)?;
         loop {
             if let Some(syscall_result) = self.try_get_syscall_result(token) {
-                #[allow(trivial_numeric_casts, unused_mut)]
+                #[allow(unused_mut)]
                 let mut r = syscall_result as _;
                 if r < 0 {
-                    let errno = -r;
+                    let errno = -r as _;
                     if libc::ECONNREFUSED == errno {
                         return Ok(-1);
                     }
