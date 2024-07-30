@@ -326,6 +326,7 @@ macro_rules! impl_io_uring {
                         return Ok(r);
                     }
                     self.wait_just(Some(Duration::from_millis(10)))?;
+                    eprintln!("{} loop", Syscall::$syscall);
                 }
             }
         }
@@ -351,11 +352,12 @@ impl EventLoop<'_> {
                     if libc::ENOTCONN == errno {
                         return Ok(-1);
                     }
-                    panic!("{}->{errno}", Syscall::connect);
+                    panic!("{}->{errno}", Syscall::shutdown);
                 }
                 return Ok(r);
             }
             self.wait_just(Some(Duration::from_millis(10)))?;
+            eprintln!("{} loop", Syscall::shutdown);
         }
     }
 
@@ -382,6 +384,7 @@ impl EventLoop<'_> {
                 return Ok(r);
             }
             self.wait_just(Some(Duration::from_millis(10)))?;
+            eprintln!("{} loop", Syscall::connect);
         }
     }
 }
