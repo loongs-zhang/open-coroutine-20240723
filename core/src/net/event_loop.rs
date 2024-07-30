@@ -319,7 +319,7 @@ macro_rules! impl_io_uring {
                         #[allow(trivial_numeric_casts, unused_mut)]
                         let mut r = syscall_result as _;
                         if r < 0 {
-                            panic!("{}->{r}", $crate::common::constants::Syscall::$syscall);
+                            panic!("{}->{r}", Syscall::$syscall);
                         }
                         return Ok(r);
                     }
@@ -368,7 +368,7 @@ impl EventLoop<'_> {
                     return Ok(-1);
                 }
                 if r < 0 {
-                    panic!("{}->{r}", common::constants::Syscall::connect);
+                    panic!("{}->{r}", Syscall::connect);
                 }
                 return Ok(r);
             }
