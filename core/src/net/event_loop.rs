@@ -368,10 +368,7 @@ impl EventLoop<'_> {
                     return Ok(-1);
                 }
                 if r < 0 {
-                    panic!(
-                        "{}->{r}",
-                        IntellijRustDollarCrate::common::constants::Syscall::connect
-                    );
+                    panic!("{}->{r}", common::constants::Syscall::connect);
                 }
                 return Ok(r);
             }
