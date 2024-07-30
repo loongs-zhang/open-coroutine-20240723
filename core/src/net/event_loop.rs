@@ -318,9 +318,9 @@ macro_rules! impl_io_uring {
                 loop {
                     if let Some(syscall_result) = self.try_get_syscall_result(token) {
                         #[allow(unused_mut)]
-                        let mut r = syscall_result as _;
+                        let mut r: $result = syscall_result as _;
                         if r < 0 {
-                            let errno: std::ffi::c_int = -r as _;
+                            let errno: c_int = -r as _;
                             panic!("{}->{errno}", Syscall::$syscall);
                         }
                         return Ok(r);
@@ -344,9 +344,13 @@ impl EventLoop<'_> {
         self.operator.shutdown(token, fd, how)?;
         loop {
             if let Some(syscall_result) = self.try_get_syscall_result(token) {
-                let mut r = syscall_result as _;
-                if libc::ENOTCONN == r {
-                    r = 0;
+                let mut r: c_int = syscall_result as _;
+                if r < 0 {
+                    let errno: c_int = -r as _;
+                    if libc::ENOTCONN == errno {
+                        return Ok(-1);
+                    }
+                    panic!("{}->{errno}", Syscall::connect);
                 }
                 return Ok(r);
             }
@@ -366,9 +370,9 @@ impl EventLoop<'_> {
         loop {
             if let Some(syscall_result) = self.try_get_syscall_result(token) {
                 #[allow(unused_mut)]
-                let mut r = syscall_result as _;
+                let mut r: c_int = syscall_result as _;
                 if r < 0 {
-                    let errno = -r as _;
+                    let errno: c_int = -r as _;
                     if libc::ECONNREFUSED == errno {
                         return Ok(-1);
                     }
