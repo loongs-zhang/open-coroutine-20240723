@@ -351,8 +351,34 @@ impl EventLoop<'_> {
             self.wait_just(Some(Duration::from_millis(10)))?;
         }
     }
+
+    pub(super) fn connect(
+        &self,
+        fd: c_int,
+        address: *const sockaddr,
+        len: socklen_t,
+    ) -> std::io::Result<c_int> {
+        let token = EventLoop::token(Syscall::connect);
+        self.operator.connect(token, fd, address, len)?;
+        loop {
+            if let Some(syscall_result) = self.try_get_syscall_result(token) {
+                #[allow(trivial_numeric_casts, unused_mut)]
+                let mut r = syscall_result as _;
+                if libc::ECONNREFUSED == r {
+                    return -1;
+                }
+                if r < 0 {
+                    panic!(
+                        "{}->{r}",
+                        IntellijRustDollarCrate::common::constants::Syscall::connect
+                    );
+                }
+                return Ok(r);
+            }
+            self.wait_just(Some(Duration::from_millis(10)))?;
+        }
+    }
 }
-impl_io_uring!(connect(fd: c_int, address: *const sockaddr, len: socklen_t) -> c_int);
 impl_io_uring!(close(fd: c_int) -> c_int);
 impl_io_uring!(recv(fd: c_int, buf: *mut c_void, len: size_t, flags: c_int) -> ssize_t);
 impl_io_uring!(read(fd: c_int, buf: *mut c_void, count: size_t) -> ssize_t);
