@@ -178,7 +178,8 @@ impl<'e> EventLoop<'e> {
         // use epoll/kevent/iocp
         let mut events = Events::with_capacity(1024);
         self.selector.select(&mut events, left_time)?;
-        for event in &events {
+        #[allow(clippy::explicit_iter_loop)]
+        for event in events.iter() {
             let token = event.get_token();
             if event.readable() || event.writable() {
                 unsafe { self.resume(token) };

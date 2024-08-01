@@ -120,15 +120,18 @@ pub fn shutdown() {
 /// }
 /// ```
 pub fn connect_timeout<A: ToSocketAddrs>(addr: A, timeout: Duration) -> std::io::Result<TcpStream> {
-    let mut left_time = timeout;
+    let timeout_time = open_coroutine_core::common::get_timeout_time(timeout);
     let mut last_err = None;
     for addr in addr.to_socket_addrs()? {
-        while left_time > Duration::ZERO {
-            match TcpStream::connect_timeout(&addr, left_time.min(SLICE)) {
+        loop {
+            let left_time = timeout_time.saturating_sub(open_coroutine_core::common::now());
+            if 0 == left_time {
+                break;
+            }
+            match TcpStream::connect_timeout(&addr, Duration::from_nanos(left_time).min(SLICE)) {
                 Ok(l) => return Ok(l),
                 Err(e) => last_err = Some(e),
             }
-            left_time = left_time.saturating_sub(SLICE);
         }
     }
     Err(last_err.unwrap_or_else(|| {

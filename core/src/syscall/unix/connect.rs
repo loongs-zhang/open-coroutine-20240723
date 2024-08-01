@@ -67,7 +67,7 @@ impl<I: ConnectSyscall> ConnectSyscall for NioConnectSyscall<I> {
                 break;
             }
             let errno = Error::last_os_error().raw_os_error();
-            if errno == Some(libc::EINPROGRESS) || errno == Some(libc::ENOTCONN) {
+            if errno == Some(libc::EINPROGRESS) || errno == Some(libc::EALREADY) {
                 //阻塞，直到写事件发生
                 if EventLoops::wait_write_event(fd, Some(crate::common::constants::SLICE)).is_err()
                 {

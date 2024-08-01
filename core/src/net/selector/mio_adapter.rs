@@ -1,3 +1,4 @@
+use crate::common::CondvarBlocker;
 use crossbeam_utils::atomic::AtomicCell;
 use derivative::Derivative;
 use mio::event::Event;
@@ -5,7 +6,7 @@ use mio::unix::SourceFd;
 use mio::{Events, Interest, Poll, Token};
 use std::ffi::c_int;
 use std::ops::Deref;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 impl super::Interest for Interest {
@@ -36,19 +37,11 @@ impl super::Event for Event {
     }
 }
 
-impl super::EventIterator<Event> for Events {
-    fn iterator<'a>(&'a self) -> impl Iterator<Item = &'a Event>
-    where
-        Event: 'a,
-    {
-        self.iter()
-    }
-}
-
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub(crate) struct Poller {
     waiting: AtomicBool,
+    blocker: CondvarBlocker,
     #[derivative(Debug = "ignore")]
     inner: AtomicCell<Poll>,
 }
@@ -57,6 +50,7 @@ impl Poller {
     pub(crate) fn new() -> std::io::Result<Self> {
         Ok(Self {
             waiting: AtomicBool::new(false),
+            blocker: CondvarBlocker::default(),
             inner: AtomicCell::new(Poll::new()?),
         })
     }
@@ -70,19 +64,18 @@ impl Deref for Poller {
     }
 }
 
-impl super::Selector<Interest, Event, Events> for Poller {
+impl super::Selector<Interest, Event> for Poller {
+    fn waiting(&self) -> &AtomicBool {
+        &self.waiting
+    }
+
+    fn blocker(&self) -> &CondvarBlocker {
+        &self.blocker
+    }
+
     fn do_select(&self, events: &mut Events, timeout: Option<Duration>) -> std::io::Result<()> {
-        if self
-            .waiting
-            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .is_err()
-        {
-            return Ok(());
-        }
         let inner = unsafe { &mut *self.inner.as_ptr() };
-        let result = inner.poll(events, timeout);
-        self.waiting.store(false, Ordering::Release);
-        result
+        inner.poll(events, timeout)
     }
 
     fn do_register(&self, fd: c_int, token: usize, interests: Interest) -> std::io::Result<()> {

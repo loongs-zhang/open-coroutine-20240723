@@ -95,6 +95,22 @@ pub fn page_size() -> usize {
     ret
 }
 
+#[allow(missing_docs)]
+#[derive(Debug, Default)]
+pub struct CondvarBlocker {
+    mutex: std::sync::Mutex<()>,
+    condvar: std::sync::Condvar,
+}
+
+impl CondvarBlocker {
+    /// Block current thread for a while.
+    pub fn block(&self, dur: Duration) {
+        _ = self
+            .condvar
+            .wait_timeout(self.mutex.lock().expect("lock failed"), dur);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[cfg(target_os = "linux")]
