@@ -4,7 +4,6 @@ use libc::{sockaddr, socklen_t};
 use once_cell::sync::Lazy;
 use std::ffi::{c_int, c_void};
 use std::io::Error;
-use std::time::Duration;
 
 #[must_use]
 pub extern "C" fn connect(
@@ -70,8 +69,8 @@ impl<I: ConnectSyscall> ConnectSyscall for NioConnectSyscall<I> {
             let errno = Error::last_os_error().raw_os_error();
             if errno == Some(libc::EINPROGRESS) || errno == Some(libc::ENOTCONN) {
                 //阻塞，直到写事件发生
-                if EventLoops::wait_write_event(fd, Some(Duration::from_millis(10))).is_err() {
-                    r = -1;
+                if EventLoops::wait_write_event(fd, Some(crate::common::constants::SLICE)).is_err()
+                {
                     break;
                 }
                 let mut err: c_int = 0;
@@ -100,7 +99,6 @@ impl<I: ConnectSyscall> ConnectSyscall for NioConnectSyscall<I> {
                     r = libc::getpeername(fd, &mut address, &mut address_len);
                 }
             } else if errno != Some(libc::EINTR) {
-                r = -1;
                 break;
             }
         }

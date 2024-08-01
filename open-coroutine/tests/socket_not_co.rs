@@ -4,6 +4,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 fn start_server<A: ToSocketAddrs>(addr: A, server_finished: Arc<(Mutex<bool>, Condvar)>) {
+    std::thread::sleep(Duration::from_millis(100));
     let listener = TcpListener::bind(addr).expect("start server failed");
     for stream in listener.incoming() {
         let mut socket = stream.expect("accept new connection failed");
@@ -47,8 +48,9 @@ fn start_server<A: ToSocketAddrs>(addr: A, server_finished: Arc<(Mutex<bool>, Co
 }
 
 fn start_client<A: ToSocketAddrs>(addr: A) {
+    //fixme
     let mut stream =
-        open_coroutine::connect_timeout(addr, Duration::from_secs(3)).expect("connect failed");
+        open_coroutine::connect_timeout(addr, Duration::from_secs(1)).expect("connect failed");
     let mut buffer1 = [0; 256];
     for i in 0..3 {
         assert_eq!(

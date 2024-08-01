@@ -117,7 +117,7 @@ macro_rules! impl_nio_read {
                         //wait read event
                         if $crate::net::EventLoops::wait_read_event(
                             $fd,
-                            Some(std::time::Duration::from_millis(10)),
+                            Some($crate::common::constants::SLICE),
                         ).is_err() {
                             break;
                         }
@@ -178,7 +178,7 @@ macro_rules! impl_nio_read_buf {
                         //wait read event
                         if $crate::net::EventLoops::wait_read_event(
                             $fd,
-                            Some(std::time::Duration::from_millis(10)),
+                            Some($crate::common::constants::SLICE),
                         )
                         .is_err()
                         {
@@ -270,7 +270,7 @@ macro_rules! impl_nio_read_iovec {
                             //wait read event
                             if $crate::net::EventLoops::wait_read_event(
                                 $fd,
-                                Some(std::time::Duration::from_millis(10))
+                                Some($crate::common::constants::SLICE)
                             ).is_err() {
                                 std::mem::forget(vec);
                                 if blocking {
@@ -344,7 +344,7 @@ macro_rules! impl_nio_write_buf {
                         //wait write event
                         if $crate::net::EventLoops::wait_write_event(
                             $fd,
-                            Some(std::time::Duration::from_millis(10)),
+                            Some($crate::common::constants::SLICE),
                         )
                         .is_err()
                         {
@@ -430,7 +430,7 @@ macro_rules! impl_nio_write_iovec {
                             //wait write event
                             if $crate::net::EventLoops::wait_write_event(
                                 $fd,
-                                Some(std::time::Duration::from_millis(10))
+                                Some($crate::common::constants::SLICE)
                             ).is_err() {
                                 std::mem::forget(vec);
                                 if blocking {

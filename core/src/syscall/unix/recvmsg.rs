@@ -4,7 +4,6 @@ use libc::{msghdr, ssize_t};
 use once_cell::sync::Lazy;
 use std::ffi::{c_int, c_void};
 use std::io::{Error, ErrorKind};
-use std::time::Duration;
 
 #[must_use]
 pub extern "C" fn recvmsg(
@@ -50,6 +49,7 @@ struct NioRecvmsgSyscall<I: RecvmsgSyscall> {
 }
 
 impl<I: RecvmsgSyscall> RecvmsgSyscall for NioRecvmsgSyscall<I> {
+    #[allow(clippy::too_many_lines)]
     extern "C" fn recvmsg(
         &self,
         fn_ptr: Option<&extern "C" fn(c_int, *mut msghdr, c_int) -> ssize_t>,
@@ -133,7 +133,9 @@ impl<I: RecvmsgSyscall> RecvmsgSyscall for NioRecvmsgSyscall<I> {
                 let error_kind = Error::last_os_error().kind();
                 if error_kind == ErrorKind::WouldBlock {
                     //wait read event
-                    if EventLoops::wait_read_event(fd, Some(Duration::from_millis(10))).is_err() {
+                    if EventLoops::wait_read_event(fd, Some(crate::common::constants::SLICE))
+                        .is_err()
+                    {
                         std::mem::forget(vec);
                         if blocking {
                             set_blocking(fd);

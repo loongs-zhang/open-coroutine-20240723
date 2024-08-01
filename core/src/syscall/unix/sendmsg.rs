@@ -4,7 +4,6 @@ use libc::{msghdr, ssize_t};
 use once_cell::sync::Lazy;
 use std::ffi::{c_int, c_void};
 use std::io::{Error, ErrorKind};
-use std::time::Duration;
 
 #[must_use]
 pub extern "C" fn sendmsg(
@@ -127,7 +126,9 @@ impl<I: SendmsgSyscall> SendmsgSyscall for NioSendmsgSyscall<I> {
                 let error_kind = Error::last_os_error().kind();
                 if error_kind == ErrorKind::WouldBlock {
                     //wait write event
-                    if EventLoops::wait_write_event(fd, Some(Duration::from_millis(10))).is_err() {
+                    if EventLoops::wait_write_event(fd, Some(crate::common::constants::SLICE))
+                        .is_err()
+                    {
                         std::mem::forget(vec);
                         if blocking {
                             set_blocking(fd);

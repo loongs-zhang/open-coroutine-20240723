@@ -50,6 +50,7 @@
 pub use open_coroutine_core::net::config::Config;
 pub use open_coroutine_macros::*;
 
+use open_coroutine_core::common::constants::SLICE;
 use std::ffi::{c_int, c_uint};
 use std::io::{Error, ErrorKind};
 use std::net::{TcpStream, ToSocketAddrs};
@@ -119,7 +120,6 @@ pub fn shutdown() {
 /// }
 /// ```
 pub fn connect_timeout<A: ToSocketAddrs>(addr: A, timeout: Duration) -> std::io::Result<TcpStream> {
-    const SLICE: Duration = Duration::from_millis(10);
     let mut left_time = timeout;
     let mut last_err = None;
     for addr in addr.to_socket_addrs()? {

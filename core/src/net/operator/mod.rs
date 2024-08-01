@@ -93,6 +93,7 @@ impl Operator<'_> {
     pub(crate) fn select(
         &self,
         timeout: Option<Duration>,
+        want: usize,
     ) -> std::io::Result<(usize, CompletionQueue, Option<Duration>)> {
         if support_io_uring() {
             if self
@@ -102,7 +103,7 @@ impl Operator<'_> {
             {
                 return Ok((0, unsafe { self.inner.completion_shared() }, timeout));
             }
-            let result = self.do_select(timeout);
+            let result = self.do_select(timeout, want);
             self.entering.store(false, Ordering::Release);
             return result;
         }
@@ -112,12 +113,13 @@ impl Operator<'_> {
     fn do_select(
         &self,
         timeout: Option<Duration>,
+        want: usize,
     ) -> std::io::Result<(usize, CompletionQueue, Option<Duration>)> {
         let start_time = Instant::now();
         self.timeout_add(crate::common::constants::IO_URING_TIMEOUT_USERDATA, timeout)?;
         let mut cq = unsafe { self.inner.completion_shared() };
         // when submit queue is empty, submit_and_wait will block
-        let count = match self.inner.submit_and_wait(0) {
+        let count = match self.inner.submit_and_wait(want) {
             Ok(count) => count,
             Err(err) => {
                 if err.raw_os_error() == Some(EBUSY) {

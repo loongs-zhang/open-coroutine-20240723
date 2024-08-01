@@ -84,6 +84,11 @@ impl EventLoops {
             .unwrap_or_else(move || panic!("init event-loop-{index} failed!"))
     }
 
+    /// Get a `EventLoop`, prefer current.
+    fn event_loop() -> &'static EventLoop<'static> {
+        EventLoop::current().unwrap_or_else(|| Self::round_robin())
+    }
+
     // /// Submit a new task to event-loop.
     // ///
     // /// Allow multiple threads to concurrently submit task to the pool,
@@ -99,15 +104,13 @@ impl EventLoops {
     /// Waiting for read or write events to occur.
     /// This method can only be used in coroutines.
     pub fn wait_event(timeout: Option<Duration>) -> std::io::Result<()> {
-        EventLoop::current()
-            .unwrap_or_else(|| Self::round_robin())
-            .wait_just(timeout)
+        Self::event_loop().timed_wait_just(timeout)
     }
 
     /// Waiting for a read event to occur.
     /// This method can only be used in coroutines.
     pub fn wait_read_event(fd: c_int, timeout: Option<Duration>) -> std::io::Result<()> {
-        let event_loop = EventLoop::current().unwrap_or_else(|| Self::round_robin());
+        let event_loop = Self::event_loop();
         event_loop.add_read_event(fd)?;
         event_loop.wait_just(timeout)
     }
@@ -115,7 +118,7 @@ impl EventLoops {
     /// Waiting for a write event to occur.
     /// This method can only be used in coroutines.
     pub fn wait_write_event(fd: c_int, timeout: Option<Duration>) -> std::io::Result<()> {
-        let event_loop = EventLoop::current().unwrap_or_else(|| Self::round_robin());
+        let event_loop = Self::event_loop();
         event_loop.add_write_event(fd)?;
         event_loop.wait_just(timeout)
     }

@@ -1,5 +1,5 @@
 use crate::common::beans::BeanFactory;
-use crate::common::constants::{PoolState, Syscall};
+use crate::common::constants::{PoolState, Syscall, SLICE};
 use crate::common::traits::Current;
 use crate::net::selector::{Event, Events, Poller, Selector};
 use crate::{impl_current_for, impl_display_by_debug};
@@ -135,13 +135,28 @@ impl<'e> EventLoop<'e> {
         self.wait_just(timeout)
     }
 
+    /// Wait events happen.
+    pub(super) fn timed_wait_just(&self, timeout: Option<Duration>) -> std::io::Result<()> {
+        let timeout_time = timeout.map_or(u64::MAX, crate::common::get_timeout_time);
+        loop {
+            let left_time = timeout_time
+                .saturating_sub(crate::common::now())
+                .min(10_000_000);
+            if left_time == 0 {
+                //timeout
+                return self.wait_just(Some(Duration::ZERO));
+            }
+            self.wait_just(Some(Duration::from_nanos(left_time)))?;
+        }
+    }
+
     pub(super) fn wait_just(&self, timeout: Option<Duration>) -> std::io::Result<()> {
         #[allow(unused_mut)]
         let mut left_time = timeout;
         #[cfg(all(target_os = "linux", feature = "io_uring"))]
         if crate::net::operator::support_io_uring() {
             // use io_uring
-            let (count, mut cq, left) = self.operator.select(timeout)?;
+            let (count, mut cq, left) = self.operator.select(timeout, 0)?;
             if count > 0 {
                 for cqe in &mut cq {
                     let token = cqe.user_data() as usize;
@@ -222,7 +237,7 @@ impl<'e> EventLoop<'e> {
                     // || !consumer.is_empty()
                     // || consumer.get_running_size() > 0
                     {
-                        _ = consumer.wait_event(Some(Duration::from_millis(10)));
+                        _ = consumer.wait_event(Some(SLICE));
                     }
                     // notify stop flags
                     {
@@ -258,17 +273,16 @@ impl<'e> EventLoop<'e> {
     //         PoolState::Running => {
     //             assert_eq!(PoolState::Running, self.stopping()?);
     //             let mut left = wait_time;
-    //             let once = Duration::from_millis(10);
     //             loop {
     //                 if left.is_zero() {
     //                     return Err(Error::new(ErrorKind::TimedOut, "stop timeout !"));
     //                 }
-    //                 self.wait_event(Some(left.min(once)))?;
+    //                 self.wait_event(Some(left.min(SLICE)))?;
     //                 if self.pool.is_empty() && self.pool.get_running_size() == 0 {
     //                     assert_eq!(PoolState::Stopping, self.stopped()?);
     //                     return Ok(());
     //                 }
-    //                 left = left.saturating_sub(once);
+    //                 left = left.saturating_sub(SLICE);
     //             }
     //         }
     //         PoolState::Stopping => Err(Error::new(ErrorKind::Other, "should never happens")),
