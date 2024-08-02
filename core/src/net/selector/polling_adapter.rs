@@ -3,7 +3,10 @@ use polling::{Event, PollMode};
 use std::ffi::c_int;
 use std::num::NonZeroUsize;
 use std::ops::{Deref, DerefMut};
+#[cfg(unix)]
 use std::os::fd::{FromRawFd, OwnedFd};
+#[cfg(windows)]
+use std::os::windows::io::{FromRawSocket, OwnedSocket, RawSocket};
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
@@ -106,14 +109,17 @@ impl super::Selector<Event, Event> for Poller {
     fn do_register(&self, fd: c_int, _: usize, interests: Event) -> std::io::Result<()> {
         cfg_if::cfg_if! {
             if #[cfg(windows)] {
-                let source = std::os::windows::io::RawSocket::from(fd as u32);
+                let source = unsafe {
+                    OwnedSocket::from_raw_socket(RawSocket::from(u32::try_from(fd).expect("overflow")))
+                };
             } else {
-                let source = fd;
+                let source = unsafe { OwnedFd::from_raw_fd(fd) };
             }
         }
+        #[allow(unused_unsafe)]
         unsafe {
             self.add_with_mode(
-                source,
+                &source,
                 interests,
                 if self.supports_edge() {
                     PollMode::Edge
@@ -125,9 +131,19 @@ impl super::Selector<Event, Event> for Poller {
     }
 
     fn do_reregister(&self, fd: c_int, _: usize, interests: Event) -> std::io::Result<()> {
+        cfg_if::cfg_if! {
+            if #[cfg(windows)] {
+                let source = unsafe {
+                    OwnedSocket::from_raw_socket(RawSocket::from(u32::try_from(fd).expect("overflow")))
+                };
+            } else {
+                let source = unsafe { OwnedFd::from_raw_fd(fd) };
+            }
+        }
+        #[allow(unused_unsafe)]
         unsafe {
             self.modify_with_mode(
-                OwnedFd::from_raw_fd(fd),
+                source,
                 interests,
                 if self.supports_edge() {
                     PollMode::Edge
@@ -139,6 +155,15 @@ impl super::Selector<Event, Event> for Poller {
     }
 
     fn do_deregister(&self, fd: c_int, _: usize) -> std::io::Result<()> {
-        self.delete(unsafe { OwnedFd::from_raw_fd(fd) })
+        cfg_if::cfg_if! {
+            if #[cfg(windows)] {
+                let source = unsafe {
+                    OwnedSocket::from_raw_socket(RawSocket::from(u32::try_from(fd).expect("overflow")))
+                };
+            } else {
+                let source = unsafe { OwnedFd::from_raw_fd(fd) };
+            }
+        }
+        self.delete(source)
     }
 }

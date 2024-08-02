@@ -81,3 +81,39 @@ pub extern "C" fn open_coroutine_stop(secs: c_uint) -> c_int {
     }
     -1
 }
+
+#[cfg(test)]
+#[ignore]
+#[test]
+fn deps() {
+    // need to add file_name env when run this test
+    let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("env not found"));
+    let deps = out_dir
+        .parent()
+        .expect("can not find deps dir")
+        .parent()
+        .expect("can not find deps dir")
+        .parent()
+        .expect("can not find deps dir")
+        .join("deps");
+    for entry in std::fs::read_dir(deps.clone())
+        .expect("Failed to read deps")
+        .flatten()
+    {
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        if !file_name.contains("open_coroutine_hook") {
+            continue;
+        }
+        if cfg!(target_os = "linux") && file_name.ends_with(".so") {
+            println!("{file_name}");
+        } else if cfg!(target_os = "macos") && file_name.ends_with(".dylib") {
+            println!("{file_name}");
+        } else if cfg!(windows) {
+            if file_name.ends_with(".dll") {
+                println!("dll {file_name}");
+            } else if file_name.ends_with(".lib") {
+                println!("lib {file_name}");
+            }
+        }
+    }
+}
