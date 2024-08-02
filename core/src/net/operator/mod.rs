@@ -70,7 +70,7 @@ impl Operator<'_> {
     pub(crate) fn new(cpu: usize) -> std::io::Result<Self> {
         IoUring::builder()
             .setup_sqpoll(1000)
-            .setup_sqpoll_cpu(u32::try_from(cpu).unwrap_or_else(|_| u32::MAX))
+            .setup_sqpoll_cpu(u32::try_from(cpu).unwrap_or(u32::MAX))
             .build(1024)
             .map(|inner| Operator {
                 inner,

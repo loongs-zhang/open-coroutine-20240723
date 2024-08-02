@@ -75,13 +75,21 @@ macro_rules! impl_io_uring {
 
         #[cfg(all(target_os = "linux", feature = "io_uring"))]
         impl<I: $trait_name> $trait_name for $struct_name<I> {
+            #[allow(trivial_numeric_casts)]
             extern "C" fn $syscall(
                 &self,
                 fn_ptr: Option<&extern "C" fn($($arg_type),*) -> $result>,
                 $($arg: $arg_type),*
             ) -> $result {
-                $crate::net::EventLoops::$syscall($($arg, )*)
-                    .unwrap_or_else(|_| self.inner.$syscall(fn_ptr, $($arg, )*))
+                if let Ok(arc) = $crate::net::EventLoops::$syscall($($arg, )*) {
+                    let (lock, cvar) = &*arc;
+                    let syscall_result = cvar
+                        .wait_while(lock.lock().expect("lock failed"), |&mut result| result.is_none())
+                        .expect("lock failed")
+                        .expect("no syscall result");
+                    return syscall_result as $result;
+                }
+                self.inner.$syscall(fn_ptr, $($arg, )*)
             }
         }
     }

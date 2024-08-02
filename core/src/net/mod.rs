@@ -18,6 +18,7 @@ cfg_if::cfg_if! {
 
 mod selector;
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 #[cfg(all(target_os = "linux", feature = "io_uring"))]
 mod operator;
 
@@ -183,8 +184,8 @@ impl EventLoops {
             if result.1.timed_out() {
                 return Err(Error::new(ErrorKind::TimedOut, "stop timeout !"));
             }
-            #[cfg(all(unix, feature = "preemptive"))]
-            crate::monitor::Monitor::stop();
+            // #[cfg(all(unix, feature = "preemptive"))]
+            // crate::monitor::Monitor::stop();
         }
         Ok(())
     }
@@ -197,9 +198,8 @@ macro_rules! impl_io_uring {
             #[allow(missing_docs)]
             pub fn $syscall(
                 $($arg: $arg_type),*
-            ) -> std::io::Result<$result> {
-                EventLoop::current().unwrap_or_else(|| Self::round_robin())
-                    .$syscall($($arg, )*)
+            ) -> std::io::Result<Arc<(Mutex<Option<ssize_t>>, Condvar)>> {
+                Self::event_loop().$syscall($($arg, )*)
             }
         }
     }
