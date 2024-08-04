@@ -37,6 +37,15 @@ impl super::Event for Event {
     }
 }
 
+impl super::EventIterator<Event> for Events {
+    fn iterator<'a>(&'a self) -> impl Iterator<Item = &'a Event>
+    where
+        Event: 'a,
+    {
+        self.iter()
+    }
+}
+
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub(crate) struct Poller {
@@ -64,7 +73,7 @@ impl Deref for Poller {
     }
 }
 
-impl super::Selector<Interest, Event> for Poller {
+impl super::Selector<Interest, Event, Events> for Poller {
     fn waiting(&self) -> &AtomicBool {
         &self.waiting
     }

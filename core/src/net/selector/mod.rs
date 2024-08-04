@@ -40,11 +40,19 @@ static WRITABLE_RECORDS: Lazy<DashSet<c_int>> = Lazy::new(DashSet::new);
 
 static WRITABLE_TOKEN_RECORDS: Lazy<DashMap<c_int, usize>> = Lazy::new(DashMap::new);
 
+/// Events abstraction.
+pub(crate) trait EventIterator<E: Event> {
+    /// get the iterator.
+    fn iterator<'a>(&'a self) -> impl Iterator<Item = &'a E>
+    where
+        E: 'a;
+}
+
 /// Event driven abstraction.
-pub(crate) trait Selector<I: Interest, E: Event> {
+pub(crate) trait Selector<I: Interest, E: Event, S: EventIterator<E>> {
     /// # Errors
     /// if poll failed.
-    fn select(&self, events: &mut Events, timeout: Option<Duration>) -> std::io::Result<()> {
+    fn select(&self, events: &mut S, timeout: Option<Duration>) -> std::io::Result<()> {
         if self
             .waiting()
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
@@ -55,7 +63,7 @@ pub(crate) trait Selector<I: Interest, E: Event> {
         }
         let result = self.do_select(events, timeout);
         self.waiting().store(false, Ordering::Release);
-        for event in events.iter() {
+        for event in events.iterator() {
             let token = event.get_token();
             let fd = TOKEN_FD.remove(&token).map_or(0, |r| r.1);
             if event.readable() {
@@ -195,7 +203,7 @@ pub(crate) trait Selector<I: Interest, E: Event> {
     fn blocker(&self) -> &CondvarBlocker;
 
     /// For inner impls.
-    fn do_select(&self, events: &mut Events, timeout: Option<Duration>) -> std::io::Result<()>;
+    fn do_select(&self, events: &mut S, timeout: Option<Duration>) -> std::io::Result<()>;
 
     /// For inner impls.
     fn do_register(&self, fd: c_int, token: usize, interests: I) -> std::io::Result<()>;

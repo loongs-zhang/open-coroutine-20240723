@@ -47,7 +47,7 @@ fn main() {
                     .expect("rename to open_coroutine_hook.dll failed!");
             } else if file_name.ends_with(".lib") {
                 //fixme when link targets like ${arch}-pc-windows-msvc, this will not work
-                // it seems that .dll.lib has not been generated at this timestamp
+                // it seems that .dll.lib has not been generated at this time
                 rename(deps.join(file_name), deps.join("open_coroutine_hook.lib"))
                     .expect("rename to open_coroutine_hook.lib failed!");
             }
