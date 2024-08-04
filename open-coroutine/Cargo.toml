@@ -19,6 +19,10 @@ open-coroutine-macros = { version = "0.5.0", path = "../macros" }
 [features]
 default = ["open-coroutine-hook/default", "open-coroutine-core/default"]
 
+# Print some help log.
+# Enable for default.
+log = ["open-coroutine-hook/log", "open-coroutine-core/log"]
+
 # Provide preemptive scheduling implementation.
 # Enable for default.
 preemptive = ["open-coroutine-hook/preemptive", "open-coroutine-core/preemptive"]

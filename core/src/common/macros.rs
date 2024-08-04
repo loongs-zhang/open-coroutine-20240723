@@ -1,5 +1,44 @@
+/// Constructs an event at the trace level.
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! trace {
+    ($( $args:expr ),*) => {
+        #[cfg(all(debug_assertions, feature = "log"))]
+        tracing::trace!( $( $args ),* );
+    }
+}
+
+/// Constructs an event at the info level.
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! info {
+    ($( $args:expr ),*) => {
+        #[cfg(feature = "log")]
+        tracing::info!( $( $args ),* );
+    }
+}
+
+/// Constructs an event at the warn level.
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! warn {
+    ($( $args:expr ),*) => {
+        #[cfg(feature = "log")]
+        tracing::warn!( $( $args ),* );
+    }
+}
+
+/// Constructs an event at the error level.
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! error {
+    ($( $args:expr ),*) => {
+        #[cfg(feature = "log")]
+        tracing::error!( $( $args ),* );
+    }
+}
+
 /// Fast impl `Display` trait for `Debug` types.
-/// Check <https://www.rustwiki.org.cn/en/reference/introduction.html> for help information.
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! impl_display_by_debug {
@@ -23,7 +62,6 @@ macro_rules! impl_display_by_debug {
 
 /// Fast impl `Current` for a type.
 /// This crate use `std` cause `#![no_std]` not support `thread_local!`.
-/// Check <https://www.rustwiki.org.cn/en/reference/introduction.html> for help information.
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! impl_current_for {

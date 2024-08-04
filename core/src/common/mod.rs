@@ -9,6 +9,7 @@ pub mod beans;
 /// Traits.
 pub mod traits;
 
+/// Check <https://www.rustwiki.org.cn/en/reference/introduction.html> for help information.
 pub(crate) mod macros;
 
 /// Constants.

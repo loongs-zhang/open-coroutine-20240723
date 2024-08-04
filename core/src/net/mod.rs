@@ -1,4 +1,5 @@
 use crate::common::traits::Current;
+use crate::info;
 use crate::net::config::Config;
 use crate::net::event_loop::EventLoop;
 use once_cell::sync::OnceCell;
@@ -51,7 +52,14 @@ impl EventLoops {
                 config.keep_alive_time(),
             )
             .expect("init default EventLoops failed !");
-            eprintln!("open-coroutine init with {config:#?}");
+            #[cfg(feature = "log")]
+            let _ = tracing_subscriber::fmt()
+                .with_thread_names(true)
+                .with_timer(tracing_subscriber::fmt::time::UtcTime::new(
+                    time::format_description::well_known::Rfc2822,
+                ))
+                .try_init();
+            info!("open-coroutine init with {config:#?}");
             loops
         });
     }
