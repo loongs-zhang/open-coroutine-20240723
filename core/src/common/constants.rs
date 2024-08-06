@@ -200,3 +200,25 @@ pub enum SyscallState {
 }
 
 impl_display_by_debug!(SyscallState);
+
+/// Enums used to describe coroutine state
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum CoroutineState<Y, R> {
+    ///The coroutine is created.
+    Created,
+    ///The coroutine is ready to run.
+    Ready,
+    ///The coroutine is running.
+    Running,
+    ///The coroutine resumes execution after the specified time has been suspended(with a given value).
+    Suspend(Y, u64),
+    ///The coroutine enters the system call.
+    SystemCall(Y, Syscall, SyscallState),
+    /// The coroutine completed with a return value.
+    Complete(R),
+    /// The coroutine completed with a error message.
+    Error(&'static str),
+}
+
+impl_display_by_debug!(CoroutineState<Y, R>);

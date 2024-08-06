@@ -49,6 +49,9 @@
 /// Common traits and impl.
 pub mod common;
 
+/// Coroutine impls.
+pub mod coroutine;
+
 /// net abstraction and impl.
 #[allow(dead_code)]
 #[cfg(feature = "net")]
