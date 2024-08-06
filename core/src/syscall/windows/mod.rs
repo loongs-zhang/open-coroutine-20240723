@@ -17,8 +17,8 @@ macro_rules! impl_facade {
                 // use $crate::common::{Current, Named};
                 // use $crate::scheduler::SchedulableCoroutine;
                 //
-                // let syscall = Syscall::$syscall;
-                // $crate::info!("hook syscall {}", syscall);
+                let syscall = $crate::common::constants::Syscall::$syscall;
+                $crate::info!("enter syscall {}", syscall);
                 // if let Some(co) = SchedulableCoroutine::current() {
                 //     let new_state = SyscallState::Executing;
                 //     if co.syscall((), syscall, new_state).is_err() {
@@ -32,6 +32,7 @@ macro_rules! impl_facade {
                 //         $crate::error!("{} change to running state failed !", co.get_name());
                 //     }
                 // }
+                $crate::info!("exit syscall {}", syscall);
                 r
             }
         }
