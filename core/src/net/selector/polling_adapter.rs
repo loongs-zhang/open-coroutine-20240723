@@ -91,7 +91,7 @@ impl super::Selector<Event, Event, Events> for Poller {
     fn do_register(&self, fd: c_int, _: usize, interests: Event) -> std::io::Result<()> {
         cfg_if::cfg_if! {
             if #[cfg(windows)] {
-                let source = std::os::windows::io::RawSocket::from(fd as u32);
+                let source = std::os::windows::io::RawSocket::from(u32::try_from(fd).expect("overflow"));
             } else {
                 let source = fd;
             }
@@ -110,7 +110,7 @@ impl super::Selector<Event, Event, Events> for Poller {
     fn do_reregister(&self, fd: c_int, _: usize, interests: Event) -> std::io::Result<()> {
         cfg_if::cfg_if! {
             if #[cfg(windows)] {
-                let source = std::os::windows::io::RawSocket::from(fd as u32);
+                let source = std::os::windows::io::RawSocket::from(u32::try_from(fd).expect("overflow"));
             } else {
                 let source = fd;
             }
@@ -129,7 +129,7 @@ impl super::Selector<Event, Event, Events> for Poller {
     fn do_deregister(&self, fd: c_int, _: usize) -> std::io::Result<()> {
         cfg_if::cfg_if! {
             if #[cfg(windows)] {
-                let source = std::os::windows::io::RawSocket::from(fd as u32);
+                let source = std::os::windows::io::RawSocket::from(u32::try_from(fd).expect("overflow"));
             } else {
                 let source = fd;
             }
