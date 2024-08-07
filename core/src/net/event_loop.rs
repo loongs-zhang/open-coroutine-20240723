@@ -1,8 +1,7 @@
 use crate::common::beans::BeanFactory;
 use crate::common::constants::{PoolState, Syscall, SLICE};
-use crate::common::traits::Current;
 use crate::net::selector::{Event, Events, Poller, Selector};
-use crate::{impl_current_for, impl_display_by_debug};
+use crate::{impl_current_for, impl_display_by_debug, info};
 use crossbeam_utils::atomic::AtomicCell;
 use dashmap::DashSet;
 use once_cell::sync::Lazy;
@@ -229,7 +228,7 @@ impl<'e> EventLoop<'e> {
                         cvar.notify_one();
                     }
                     // thread per core
-                    eprintln!(
+                    info!(
                         "{} has started, pin:{}",
                         consumer.get_name(),
                         core_affinity::set_for_current(core_affinity::CoreId { id: consumer.cpu })
@@ -255,7 +254,7 @@ impl<'e> EventLoop<'e> {
                         cvar.notify_one();
                     }
                     Self::clean_current();
-                    eprintln!("{} has exited", consumer.get_name());
+                    info!("{} has exited", consumer.get_name());
                 })?,
         );
         unsafe {

@@ -14,7 +14,6 @@ macro_rules! impl_facade {
                 $($arg: $arg_type),*
             ) -> $result {
                 // use $crate::constants::{Syscall, SyscallState};
-                // use $crate::common::{Current, Named};
                 // use $crate::scheduler::SchedulableCoroutine;
                 //
                 let syscall = $crate::common::constants::Syscall::$syscall;

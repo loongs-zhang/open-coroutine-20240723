@@ -56,7 +56,6 @@ pub use korosensei::Suspender;
 
 #[cfg(feature = "korosensei")]
 mod korosensei {
-    use crate::common::traits::Current;
     use corosensei::Yielder;
     use derivative::Derivative;
     use std::panic::UnwindSafe;

@@ -76,17 +76,21 @@ macro_rules! impl_current_for {
             static $name: std::cell::RefCell<std::collections::VecDeque<*const std::ffi::c_void>> = const { std::cell::RefCell::new(std::collections::VecDeque::new()) };
         }
 
-        impl$(<$($generic1 $( : $trait_tt1 $( + $trait_tt2)*)?),+>)? $crate::common::traits::Current for $struct_name$(<$($generic1),+>)?
+        impl$(<$($generic1 $( : $trait_tt1 $( + $trait_tt2)*)?),+>)? $struct_name$(<$($generic1),+>)?
             $(where $($generic2 $( : $trait_tt3 $( + $trait_tt4)*)?),+)?
         {
-            fn init_current(current: &Self) {
+            /// Init the current.
+            pub(crate) fn init_current(current: &Self) {
                 $name.with(|s| {
                     s.borrow_mut()
                         .push_front(core::ptr::from_ref(current).cast::<std::ffi::c_void>());
                 });
             }
 
-            fn current<'current>() -> Option<&'current Self> {
+            /// Get the current if has.
+            #[must_use]
+            #[allow(unreachable_pub)]
+            pub(crate) fn current<'c>() -> Option<&'c Self> {
                 $name.with(|s| {
                     s.borrow()
                         .front()
@@ -94,7 +98,8 @@ macro_rules! impl_current_for {
                 })
             }
 
-            fn clean_current() {
+            /// Clean the current.
+            pub(crate) fn clean_current() {
                 $name.with(|s| _ = s.borrow_mut().pop_front());
             }
         }

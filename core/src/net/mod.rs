@@ -1,4 +1,3 @@
-use crate::common::traits::Current;
 use crate::info;
 use crate::net::config::Config;
 use crate::net::event_loop::EventLoop;
@@ -55,7 +54,9 @@ impl EventLoops {
             #[cfg(feature = "log")]
             let _ = tracing_subscriber::fmt()
                 .with_thread_names(true)
-                .with_timer(tracing_subscriber::fmt::time::UtcTime::new(
+                .with_line_number(true)
+                .with_timer(tracing_subscriber::fmt::time::OffsetTime::new(
+                    time::UtcOffset::from_hms(8, 0, 0).expect("create UtcOffset failed !"),
                     time::format_description::well_known::Rfc2822,
                 ))
                 .try_init();

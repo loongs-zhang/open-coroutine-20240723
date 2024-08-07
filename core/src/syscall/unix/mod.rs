@@ -40,7 +40,6 @@ macro_rules! impl_facade {
                 $($arg: $arg_type),*
             ) -> $result {
                 // use $crate::constants::{Syscall, SyscallState};
-                // use $crate::common::{Current, Named};
                 // use $crate::scheduler::SchedulableCoroutine;
                 //
                 let syscall = $crate::common::constants::Syscall::$syscall;
@@ -76,7 +75,6 @@ macro_rules! impl_io_uring {
 
         #[cfg(all(target_os = "linux", feature = "io_uring"))]
         impl<I: $trait_name> $trait_name for $struct_name<I> {
-            #[allow(trivial_numeric_casts)]
             extern "C" fn $syscall(
                 &self,
                 fn_ptr: Option<&extern "C" fn($($arg_type),*) -> $result>,
@@ -84,11 +82,21 @@ macro_rules! impl_io_uring {
             ) -> $result {
                 if let Ok(arc) = $crate::net::EventLoops::$syscall($($arg, )*) {
                     let (lock, cvar) = &*arc;
-                    let syscall_result = cvar
-                        .wait_while(lock.lock().expect("lock failed"), |&mut result| result.is_none())
+                    let mut syscall_result: $result = cvar
+                        .wait_while(lock.lock().expect("lock failed"),
+                            |&mut result| result.is_none()
+                        )
                         .expect("lock failed")
-                        .expect("no syscall result");
-                    return syscall_result as $result;
+                        .expect("no syscall result")
+                        .try_into()
+                        .expect("io_uring syscall result overflow");
+                    if syscall_result < 0 {
+                        let errno: std::ffi::c_int = (-syscall_result).try_into()
+                            .expect("io_uring errno overflow");
+                        $crate::syscall::common::set_errno(errno);
+                        syscall_result = -1;
+                    }
+                    return syscall_result;
                 }
                 self.inner.$syscall(fn_ptr, $($arg, )*)
             }
