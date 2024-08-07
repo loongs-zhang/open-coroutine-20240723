@@ -10,7 +10,7 @@ macro_rules! impl_facade {
         impl<I: $trait_name> $trait_name for $struct_name<I> {
             extern "system" fn $syscall(
                 &self,
-                fn_ptr: Option<&retour::StaticDetour<unsafe extern "system" fn($($arg_type),*) -> $result>>,
+                fn_ptr: Option<fn($($arg_type),*) -> $result>,
                 $($arg: $arg_type),*
             ) -> $result {
                 // use $crate::constants::{Syscall, SyscallState};
@@ -47,15 +47,13 @@ macro_rules! impl_raw {
         impl $trait_name for $struct_name {
             extern "system" fn $syscall(
                 &self,
-                fn_ptr: Option<&retour::StaticDetour<unsafe extern "system" fn($($arg_type),*)> -> $result>,
+                fn_ptr: Option<fn($($arg_type),*) -> $result>,
                 $($arg: $arg_type),*
             ) -> $result {
-                unsafe {
-                    if let Some(f) = fn_ptr {
-                        f.call($($arg),*)
-                    } else {
-                        $($mod_name)::*::$syscall($($arg),*)
-                    }
+                if let Some(f) = fn_ptr {
+                    f($($arg),*)
+                } else {
+                    unsafe { $($mod_name)::*::$syscall($($arg),*) }
                 }
             }
         }
