@@ -8,7 +8,7 @@ macro_rules! impl_facade {
         }
 
         impl<I: $trait_name> $trait_name for $struct_name<I> {
-            extern "system" fn $syscall(
+            fn $syscall(
                 &self,
                 fn_ptr: Option<fn($($arg_type),*) -> $result>,
                 $($arg: $arg_type),*
@@ -45,7 +45,7 @@ macro_rules! impl_raw {
         struct $struct_name {}
 
         impl $trait_name for $struct_name {
-            extern "system" fn $syscall(
+            fn $syscall(
                 &self,
                 fn_ptr: Option<fn($($arg_type),*) -> $result>,
                 $($arg: $arg_type),*
