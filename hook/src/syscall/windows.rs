@@ -20,7 +20,7 @@ pub unsafe extern "system" fn DllMain(
     } else if call_reason == DLL_PROCESS_DETACH {
         BOOL::from(detach().is_ok())
     } else {
-        BOOL::TRUE
+        1
     }
 }
 
