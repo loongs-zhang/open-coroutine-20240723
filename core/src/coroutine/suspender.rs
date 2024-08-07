@@ -2,14 +2,13 @@ use crate::common::get_timeout_time;
 use crate::impl_current_for;
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::panic::UnwindSafe;
 use std::time::Duration;
 
 thread_local! {
     static TIMESTAMP: RefCell<VecDeque<u64>> = const { RefCell::new(VecDeque::new()) };
 }
 
-impl<'s, Param: UnwindSafe, Yield: UnwindSafe> Suspender<'s, Param, Yield> {
+impl<'s, Param, Yield> Suspender<'s, Param, Yield> {
     /// Delay the execution of the coroutine with an arg after `Duration`.
     pub fn delay_with(&self, arg: Yield, delay: Duration) -> Param {
         self.until_with(arg, get_timeout_time(delay))
@@ -29,7 +28,7 @@ impl<'s, Param: UnwindSafe, Yield: UnwindSafe> Suspender<'s, Param, Yield> {
 }
 
 #[allow(clippy::must_use_candidate)]
-impl<'s, Param: UnwindSafe> Suspender<'s, Param, ()> {
+impl<'s, Param> Suspender<'s, Param, ()> {
     /// see the `suspend_with` documents.
     pub fn suspend(&self) -> Param {
         self.suspend_with(())
@@ -46,10 +45,7 @@ impl<'s, Param: UnwindSafe> Suspender<'s, Param, ()> {
     }
 }
 
-impl_current_for!(
-    SUSPENDER,
-    Suspender<'s, Param: UnwindSafe, Yield: UnwindSafe>
-);
+impl_current_for!(SUSPENDER, Suspender<'s, Param, Yield>);
 
 #[cfg(feature = "korosensei")]
 pub use korosensei::Suspender;
@@ -58,18 +54,17 @@ pub use korosensei::Suspender;
 mod korosensei {
     use corosensei::Yielder;
     use derivative::Derivative;
-    use std::panic::UnwindSafe;
 
     /// Ths suspender implemented for coroutine.
     #[repr(C)]
     #[derive(Derivative)]
     #[derivative(Debug)]
-    pub struct Suspender<'s, Param: UnwindSafe, Yield: UnwindSafe> {
+    pub struct Suspender<'s, Param, Yield> {
         #[derivative(Debug = "ignore")]
         inner: &'s Yielder<Param, Yield>,
     }
 
-    impl<'s, Param: UnwindSafe, Yield: UnwindSafe> Suspender<'s, Param, Yield> {
+    impl<'s, Param, Yield> Suspender<'s, Param, Yield> {
         pub(crate) fn new(inner: &'s Yielder<Param, Yield>) -> Self {
             Self { inner }
         }

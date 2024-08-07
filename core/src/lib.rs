@@ -50,6 +50,7 @@
 pub mod common;
 
 /// Coroutine impls.
+#[allow(dead_code)]
 pub mod coroutine;
 
 /// net abstraction and impl.

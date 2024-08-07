@@ -38,6 +38,22 @@ macro_rules! error {
     }
 }
 
+/// Catch panic.
+#[macro_export]
+macro_rules! catch {
+    ($f:expr, $msg:expr, $arg:expr) => {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe($f)).map_err(|e| {
+            let message = if let Some(msg) = e.downcast_ref::<&'static str>() {
+                *msg
+            } else {
+                $msg.leak()
+            };
+            $crate::error!("{} failed with error:{}", $arg, message);
+            message
+        })
+    };
+}
+
 /// Fast impl `Display` trait for `Debug` types.
 #[allow(unused_macros)]
 #[macro_export]
@@ -90,7 +106,7 @@ macro_rules! impl_current_for {
             /// Get the current if has.
             #[must_use]
             #[allow(unreachable_pub)]
-            pub(crate) fn current<'c>() -> Option<&'c Self> {
+            pub fn current<'current>() -> Option<&'current Self> {
                 $name.with(|s| {
                     s.borrow()
                         .front()
@@ -101,6 +117,54 @@ macro_rules! impl_current_for {
             /// Clean the current.
             pub(crate) fn clean_current() {
                 $name.with(|s| _ = s.borrow_mut().pop_front());
+            }
+        }
+    };
+}
+
+/// Fast impl common traits for `Named` types.
+/// Check <https://www.rustwiki.org.cn/en/reference/introduction.html> for help information.
+#[macro_export]
+macro_rules! impl_for_named {
+    ($struct_name:ident$(<$($generic1:tt $( : $trait_tt1: tt $( + $trait_tt2: tt)*)?),+>)?
+        $(where $(
+            $generic2:tt $( : $trait_tt3: tt $( + $trait_tt4: tt)*)?
+        ),+)?
+    ) => {
+        impl$(<$($generic1 $( : $trait_tt1 $( + $trait_tt2)*)?),+>)? Eq
+            for $struct_name$(<$($generic1),+>)?
+        {
+        }
+
+        impl$(<$($generic1 $( : $trait_tt1 $( + $trait_tt2)*)?),+>)? PartialEq<Self>
+            for $struct_name$(<$($generic1),+>)?
+        {
+            fn eq(&self, other: &Self) -> bool {
+                self.name().eq(other.name())
+            }
+        }
+
+        impl$(<$($generic1 $( : $trait_tt1 $( + $trait_tt2)*)?),+>)? Ord
+            for $struct_name$(<$($generic1),+>)?
+        {
+            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+                self.name().cmp(other.name())
+            }
+        }
+
+        impl$(<$($generic1 $( : $trait_tt1 $( + $trait_tt2)*)?),+>)? PartialOrd<Self>
+            for $struct_name$(<$($generic1),+>)?
+        {
+            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        impl$(<$($generic1 $( : $trait_tt1 $( + $trait_tt2)*)?),+>)? std::hash::Hash
+            for $struct_name$(<$($generic1),+>)?
+        {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.name().hash(state)
             }
         }
     };

@@ -205,8 +205,6 @@ impl_display_by_debug!(SyscallState);
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum CoroutineState<Y, R> {
-    ///The coroutine is created.
-    Created,
     ///The coroutine is ready to run.
     Ready,
     ///The coroutine is running.
