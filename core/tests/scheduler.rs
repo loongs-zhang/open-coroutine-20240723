@@ -84,7 +84,7 @@ fn scheduler_listener() -> std::io::Result<()> {
     use open_coroutine_core::coroutine::listener::Listener;
     use open_coroutine_core::coroutine::local::CoroutineLocal;
     use open_coroutine_core::coroutine::Coroutine;
-    use open_coroutine_core::scheduler::{SchedulableCoroutineState, SchedulableListener};
+    use open_coroutine_core::scheduler::SchedulableCoroutineState;
 
     #[derive(Debug, Default)]
     struct TestListener {}
@@ -120,7 +120,6 @@ fn scheduler_listener() -> std::io::Result<()> {
             panic!("test on_error panic, just ignore it");
         }
     }
-    impl SchedulableListener for TestListener {}
 
     let mut scheduler = Scheduler::default();
     scheduler.add_listener(TestListener::default());
