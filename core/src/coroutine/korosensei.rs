@@ -347,8 +347,8 @@ where
             listeners: VecDeque::default(),
             local: CoroutineLocal::default(),
         };
-        // #[cfg(all(unix, feature = "preemptive"))]
-        // co.add_listener(crate::monitor::creator::MonitorListener::default());
+        #[cfg(all(unix, feature = "preemptive"))]
+        co.add_listener(crate::monitor::MonitorListener::default());
         co.on_create(&co, stack_size);
         Ok(co)
     }

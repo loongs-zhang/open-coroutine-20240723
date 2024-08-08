@@ -53,58 +53,83 @@ fn coroutine_delay() -> std::io::Result<()> {
     Ok(())
 }
 
-// #[cfg(all(unix, feature = "preemptive"))]
-// #[test]
-// fn coroutine_preemptive() -> std::io::Result<()> {
-//     let mut coroutine: Coroutine<(), (), ()> = co!(|_, ()| { loop {} })?;
-//     assert_eq!(CoroutineState::Suspend((), 0), coroutine.resume()?);
-//     assert_eq!(CoroutineState::Suspend((), 0), coroutine.state());
-//     Ok(())
-// }
-//
-// #[cfg(all(unix, feature = "preemptive"))]
-// #[test]
-// fn coroutine_syscall_not_preemptive() -> std::io::Result<()> {
-//     use open_coroutine_core::common::constants::{RawSyscallState, SyscallState};
-//
-//     let pair = std::sync::Arc::new((std::sync::Mutex::new(true), std::sync::Condvar::new()));
-//     let pair2 = pair.clone();
-//     _ = std::thread::Builder::new()
-//         .name("preemptive".to_string())
-//         .spawn(move || {
-//             let mut coroutine: Coroutine<(), (), ()> = co!(|_, ()| {
-//                 assert_eq!(
-//                     CoroutineState::SystemCall((), SyscallState::sleep(RawSyscallState::Executing)),
-//                     Coroutine::<(), (), ()>::current()
-//                         .unwrap()
-//                         .syscall((), SyscallState::sleep(RawSyscallState::Executing))
-//                         .unwrap()
-//                 );
-//                 loop {}
-//             })?;
-//             _ = coroutine.resume()?;
-//             // should never execute to here
-//             let (lock, cvar) = &*pair2;
-//             let mut pending = lock.lock().unwrap();
-//             *pending = false;
-//             cvar.notify_one();
-//             Ok::<(), std::io::Error>(())
-//         });
-//     // wait for the thread to start up
-//     let (lock, cvar) = &*pair;
-//     let result = cvar
-//         .wait_timeout_while(
-//             lock.lock().unwrap(),
-//             std::time::Duration::from_millis(1000),
-//             |&mut pending| pending,
-//         )
-//         .unwrap();
-//     if result.1.timed_out() {
-//         Ok(())
-//     } else {
-//         Err(std::io::Error::new(
-//             std::io::ErrorKind::Other,
-//             "The monitor should not send signals to coroutines in a syscall state",
-//         ))
-//     }
-// }
+#[cfg(all(unix, feature = "preemptive"))]
+#[test]
+fn coroutine_preemptive() -> std::io::Result<()> {
+    let pair = std::sync::Arc::new((std::sync::Mutex::new(true), std::sync::Condvar::new()));
+    let pair2 = pair.clone();
+    _ = std::thread::Builder::new()
+        .name("preemptive".to_string())
+        .spawn(move || {
+            let mut coroutine: Coroutine<(), (), ()> = co!(|_, ()| { loop {} })?;
+            assert_eq!(CoroutineState::Suspend((), 0), coroutine.resume()?);
+            assert_eq!(CoroutineState::Suspend((), 0), coroutine.state());
+            // should execute to here
+            let (lock, cvar) = &*pair2;
+            let mut pending = lock.lock().unwrap();
+            *pending = false;
+            cvar.notify_one();
+            Ok::<(), std::io::Error>(())
+        });
+    // wait for the thread to start up
+    let (lock, cvar) = &*pair;
+    let result = cvar
+        .wait_timeout_while(
+            lock.lock().unwrap(),
+            std::time::Duration::from_millis(1000),
+            |&mut pending| pending,
+        )
+        .unwrap();
+    if result.1.timed_out() {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "The monitor should send signals to coroutines in running state",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(all(unix, feature = "preemptive"))]
+#[test]
+fn coroutine_syscall_not_preemptive() -> std::io::Result<()> {
+    use open_coroutine_core::common::constants::{Syscall, SyscallState};
+
+    let pair = std::sync::Arc::new((std::sync::Mutex::new(true), std::sync::Condvar::new()));
+    let pair2 = pair.clone();
+    _ = std::thread::Builder::new()
+        .name("syscall_not_preemptive".to_string())
+        .spawn(move || {
+            let mut coroutine: Coroutine<(), (), ()> = co!(|_, ()| {
+                Coroutine::<(), (), ()>::current()
+                    .unwrap()
+                    .syscall((), Syscall::sleep, SyscallState::Executing)
+                    .unwrap();
+                loop {}
+            })?;
+            _ = coroutine.resume()?;
+            // should never execute to here
+            let (lock, cvar) = &*pair2;
+            let mut pending = lock.lock().unwrap();
+            *pending = false;
+            cvar.notify_one();
+            Ok::<(), std::io::Error>(())
+        });
+    // wait for the thread to start up
+    let (lock, cvar) = &*pair;
+    let result = cvar
+        .wait_timeout_while(
+            lock.lock().unwrap(),
+            std::time::Duration::from_millis(1000),
+            |&mut pending| pending,
+        )
+        .unwrap();
+    if result.1.timed_out() {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "The monitor should not send signals to coroutines in syscall state",
+        ))
+    }
+}

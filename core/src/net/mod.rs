@@ -193,8 +193,8 @@ impl EventLoops {
             if result.1.timed_out() {
                 return Err(Error::new(ErrorKind::TimedOut, "stop timeout !"));
             }
-            // #[cfg(all(unix, feature = "preemptive"))]
-            // crate::monitor::Monitor::stop();
+            #[cfg(all(unix, feature = "preemptive"))]
+            crate::monitor::Monitor::stop();
         }
         Ok(())
     }

@@ -47,26 +47,27 @@ impl Default for Scheduler<'_> {
 
 impl Drop for Scheduler<'_> {
     fn drop(&mut self) {
-        if !std::thread::panicking() {
-            _ = self
-                .try_timed_schedule(Duration::from_secs(30))
-                .unwrap_or_else(|_| panic!("Failed to stop scheduler {} !", self.name()));
-            assert!(
-                self.ready.is_empty(),
-                "There are still coroutines to be carried out in the ready queue:{:#?} !",
-                self.ready
-            );
-            assert!(
-                self.suspend.is_empty(),
-                "There are still coroutines to be carried out in the suspend queue:{:#?} !",
-                self.suspend
-            );
-            assert!(
-                self.syscall.is_empty(),
-                "There are still coroutines to be carried out in the syscall queue:{:#?} !",
-                self.syscall
-            );
+        if std::thread::panicking() {
+            return;
         }
+        _ = self
+            .try_timed_schedule(Duration::from_secs(30))
+            .unwrap_or_else(|_| panic!("Failed to stop scheduler {} !", self.name()));
+        assert!(
+            self.ready.is_empty(),
+            "There are still coroutines to be carried out in the ready queue:{:#?} !",
+            self.ready
+        );
+        assert!(
+            self.suspend.is_empty(),
+            "There are still coroutines to be carried out in the suspend queue:{:#?} !",
+            self.suspend
+        );
+        assert!(
+            self.syscall.is_empty(),
+            "There are still coroutines to be carried out in the syscall queue:{:#?} !",
+            self.syscall
+        );
     }
 }
 
@@ -123,8 +124,8 @@ impl<'s> Scheduler<'s> {
             f,
             stack_size.unwrap_or(self.stack_size()),
         )?;
-        for listener in &self.listeners {
-            co.add_raw_listener(*listener);
+        for listener in self.listeners.clone() {
+            co.add_raw_listener(listener);
         }
         // let co_name = Box::leak(Box::from(coroutine.get_name()));
         self.submit_raw_co(co)
@@ -174,8 +175,7 @@ impl<'s> Scheduler<'s> {
     /// # Errors
     /// see `try_timeout_schedule`.
     pub fn try_schedule(&mut self) -> std::io::Result<()> {
-        self.try_timeout_schedule(Duration::MAX.as_secs())
-            .map(|_| ())
+        self.try_timeout_schedule(u64::MAX).map(|_| ())
     }
 
     /// Try scheduling the coroutines for up to `dur`.

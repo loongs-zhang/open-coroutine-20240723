@@ -5,12 +5,18 @@ use std::time::Duration;
 /// Recommended stack size for coroutines.
 pub const DEFAULT_STACK_SIZE: usize = 128 * 1024;
 
+/// CPU bound to monitor.
+pub const MONITOR_CPU: usize = 0;
+
 /// A user data used to indicate the timeout of `io_uring_enter`.
 #[cfg(all(target_os = "linux", feature = "io_uring"))]
 pub const IO_URING_TIMEOUT_USERDATA: usize = usize::MAX - 1;
 
 /// Coroutine global queue bean name.
 pub const COROUTINE_GLOBAL_QUEUE_BEAN: &str = "coroutineGlobalQueueBean";
+
+/// Monitor bean name.
+pub const MONITOR_BEAN: &str = "monitorBean";
 
 /// Default time slice.
 pub const SLICE: Duration = Duration::from_millis(10);

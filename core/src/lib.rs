@@ -50,8 +50,11 @@
 pub mod common;
 
 /// Coroutine impls.
-#[allow(dead_code)]
 pub mod coroutine;
+
+/// Make the coroutine automatically yield.
+#[cfg(all(unix, feature = "preemptive"))]
+mod monitor;
 
 /// Scheduler impls.
 pub mod scheduler;
