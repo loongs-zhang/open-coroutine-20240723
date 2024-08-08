@@ -59,6 +59,9 @@ mod monitor;
 /// Scheduler impls.
 pub mod scheduler;
 
+/// Coroutine pool abstraction and impl.
+pub mod co_pool;
+
 /// net abstraction and impl.
 #[allow(dead_code)]
 #[cfg(feature = "net")]

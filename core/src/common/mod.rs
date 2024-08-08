@@ -137,23 +137,47 @@ pub fn page_size() -> usize {
 #[repr(C)]
 #[derive(Debug, Default)]
 pub struct CondvarBlocker {
-    mutex: std::sync::Mutex<()>,
+    mutex: std::sync::Mutex<bool>,
     condvar: std::sync::Condvar,
 }
 
 impl CondvarBlocker {
     /// Block current thread for a while.
     pub fn block(&self, dur: Duration) {
-        _ = self
-            .condvar
-            .wait_timeout(self.mutex.lock().expect("lock failed"), dur);
+        _ = self.condvar.wait_timeout_while(
+            self.mutex.lock().expect("lock failed"),
+            dur,
+            |&mut condition| !condition,
+        );
+        let mut condition = self.mutex.lock().expect("lock failed");
+        *condition = false;
+    }
+
+    /// Notify by other thread.
+    pub fn notify(&self) {
+        let mut condition = self.mutex.lock().expect("lock failed");
+        // true means the condition is ready, the other thread can continue.
+        *condition = true;
+        self.condvar.notify_one();
     }
 }
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_os = "linux")]
     use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn blocker() {
+        let start = now();
+        let blocker = Arc::new(CondvarBlocker::default());
+        let clone = blocker.clone();
+        _ = std::thread::spawn(move || {
+            blocker.notify();
+        });
+        clone.block(Duration::from_secs(3));
+        assert!(now() - start < 1_000_000_000);
+    }
 
     #[cfg(target_os = "linux")]
     #[test]

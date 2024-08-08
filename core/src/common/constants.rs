@@ -15,6 +15,9 @@ pub const IO_URING_TIMEOUT_USERDATA: usize = usize::MAX - 1;
 /// Coroutine global queue bean name.
 pub const COROUTINE_GLOBAL_QUEUE_BEAN: &str = "coroutineGlobalQueueBean";
 
+/// Task global queue bean name.
+pub const TASK_GLOBAL_QUEUE_BEAN: &str = "taskGlobalQueueBean";
+
 /// Monitor bean name.
 pub const MONITOR_BEAN: &str = "monitorBean";
 

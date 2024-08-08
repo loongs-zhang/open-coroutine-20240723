@@ -13,6 +13,7 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 use std::io::{Error, ErrorKind};
 use std::mem::MaybeUninit;
+use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
@@ -47,7 +48,7 @@ pub(crate) struct Monitor {
     notify_queue: UnsafeCell<HashSet<NotifyNode>>,
     state: Cell<MonitorState>,
     thread: UnsafeCell<MaybeUninit<JoinHandle<()>>>,
-    blocker: CondvarBlocker,
+    blocker: Arc<CondvarBlocker>,
 }
 
 impl Default for Monitor {
@@ -57,7 +58,7 @@ impl Default for Monitor {
             notify_queue: UnsafeCell::default(),
             state: Cell::new(MonitorState::Created),
             thread: UnsafeCell::new(MaybeUninit::uninit()),
-            blocker: CondvarBlocker::default(),
+            blocker: Arc::default(),
         }
     }
 }
@@ -143,7 +144,7 @@ impl Monitor {
                 }
             }
             //monitor线程不执行协程计算任务，每次循环至少wait 1ms
-            monitor.blocker.block(Duration::from_millis(1));
+            monitor.blocker.clone().block(Duration::from_millis(1));
         }
         Self::clean_current();
         assert_eq!(
@@ -166,6 +167,7 @@ impl Monitor {
             pthread: pthread_self(),
         };
         _ = queue.insert(node);
+        instance.blocker.notify();
         Ok(node)
     }
 

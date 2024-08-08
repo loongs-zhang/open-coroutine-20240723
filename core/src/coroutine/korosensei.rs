@@ -337,7 +337,7 @@ where
                     Suspender::<Param, Yield>::clean_current();
                     r
                 },
-                String::from("coroutine failed without message"),
+                format!("coroutine {co_name} failed without message"),
                 co_name
             )
         });
