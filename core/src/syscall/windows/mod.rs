@@ -2,6 +2,7 @@ pub use Sleep::Sleep;
 
 macro_rules! impl_facade {
     ( $struct_name:ident, $trait_name: ident, $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
+        #[repr(C)]
         #[derive(Debug, Default)]
         struct $struct_name<I: $trait_name> {
             inner: I,
@@ -41,6 +42,7 @@ macro_rules! impl_facade {
 #[allow(unused_macros)]
 macro_rules! impl_raw {
     ( $struct_name: ident, $trait_name: ident, $($mod_name: ident)::*, $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
+        #[repr(C)]
         #[derive(Debug, Copy, Clone, Default)]
         struct $struct_name {}
 

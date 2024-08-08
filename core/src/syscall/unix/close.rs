@@ -25,6 +25,7 @@ impl_facade!(CloseSyscallFacade, CloseSyscall, close(fd: c_int) -> c_int);
 
 impl_io_uring!(IoUringCloseSyscall, CloseSyscall, close(fd: c_int) -> c_int);
 
+#[repr(C)]
 #[derive(Debug, Default)]
 struct NioCloseSyscall<I: CloseSyscall> {
     inner: I,

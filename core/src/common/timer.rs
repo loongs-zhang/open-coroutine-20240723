@@ -152,9 +152,8 @@ impl<T> TimerList<T> {
     /// room, and all the affected elements will be moved to new positions.
     /// Returns `None` if `timestamp` is out of bounds.
     pub fn remove_entry(&mut self, timestamp: &u64) -> Option<TimerEntry<T>> {
-        self.inner.remove(timestamp).map(|entry| {
+        self.inner.remove(timestamp).inspect(|entry| {
             _ = self.total.fetch_sub(entry.len(), Ordering::Release);
-            entry
         })
     }
 
@@ -167,9 +166,8 @@ impl<T> TimerList<T> {
         T: Ord,
     {
         if let Some(entry) = self.inner.get_mut(timestamp) {
-            let val = entry.remove(t).map(|item| {
+            let val = entry.remove(t).inspect(|_| {
                 _ = self.total.fetch_sub(1, Ordering::Release);
-                item
             });
             if entry.is_empty() {
                 _ = self.remove_entry(timestamp);

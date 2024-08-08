@@ -20,6 +20,7 @@ trait SleepSyscall {
 
 impl_facade!(SleepSyscallFacade, SleepSyscall, sleep(secs: c_uint) -> c_uint);
 
+#[repr(C)]
 #[derive(Debug, Copy, Clone, Default)]
 struct NioSleepSyscall {}
 

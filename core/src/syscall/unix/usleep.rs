@@ -25,6 +25,7 @@ impl_facade!(UsleepSyscallFacade, UsleepSyscall,
     usleep(microseconds: c_uint) -> c_int
 );
 
+#[repr(C)]
 #[derive(Debug, Copy, Clone, Default)]
 struct NioUsleepSyscall {}
 

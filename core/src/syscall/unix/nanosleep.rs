@@ -28,6 +28,7 @@ impl_facade!(NanosleepSyscallFacade, NanosleepSyscall,
     nanosleep(rqtp: *const timespec, rmtp: *mut timespec) -> c_int
 );
 
+#[repr(C)]
 #[derive(Debug, Copy, Clone, Default)]
 struct NioNanosleepSyscall {}
 

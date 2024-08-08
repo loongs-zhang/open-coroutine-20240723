@@ -43,6 +43,7 @@ impl_io_uring!(IoUringConnectSyscall, ConnectSyscall,
     connect(fd: c_int, address: *const sockaddr, len: socklen_t) -> c_int
 );
 
+#[repr(C)]
 #[derive(Debug, Default)]
 struct NioConnectSyscall<I: ConnectSyscall> {
     inner: I,

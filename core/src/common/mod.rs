@@ -134,6 +134,7 @@ pub fn page_size() -> usize {
 }
 
 #[allow(missing_docs)]
+#[repr(C)]
 #[derive(Debug, Default)]
 pub struct CondvarBlocker {
     mutex: std::sync::Mutex<()>,

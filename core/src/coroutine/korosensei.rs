@@ -329,15 +329,17 @@ where
         #[cfg(feature = "log")]
         let co_name = name.clone().leak();
         let inner = ScopedCoroutine::with_stack(stack, move |y, p| {
-            let suspender = Suspender::new(y);
-            Suspender::<Param, Yield>::init_current(&suspender);
-            let r = catch!(
-                || f(&suspender, p),
+            catch!(
+                move || {
+                    let suspender = Suspender::new(y);
+                    Suspender::<Param, Yield>::init_current(&suspender);
+                    let r = f(&suspender, p);
+                    Suspender::<Param, Yield>::clean_current();
+                    r
+                },
                 String::from("coroutine failed without message"),
                 co_name
-            );
-            Suspender::<Param, Yield>::clean_current();
-            r
+            )
         });
         #[allow(unused_mut)]
         let mut co = Coroutine {

@@ -44,6 +44,7 @@ impl super::EventIterator<Event> for Events {
     }
 }
 
+#[repr(C)]
 #[derive(Debug)]
 pub(crate) struct Poller {
     waiting: AtomicBool,

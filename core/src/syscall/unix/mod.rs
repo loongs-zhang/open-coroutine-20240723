@@ -28,6 +28,7 @@ pub use writev::writev;
 
 macro_rules! impl_facade {
     ( $struct_name:ident, $trait_name: ident, $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
+        #[repr(C)]
         #[derive(Debug, Default)]
         struct $struct_name<I: $trait_name> {
             inner: I,
@@ -67,8 +68,9 @@ macro_rules! impl_facade {
 // todo 参考NIO的实现，重构syscall中的io_uring实现
 macro_rules! impl_io_uring {
     ( $struct_name:ident, $trait_name: ident, $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
-        #[cfg(all(target_os = "linux", feature = "io_uring"))]
+        #[repr(C)]
         #[derive(Debug, Default)]
+        #[cfg(all(target_os = "linux", feature = "io_uring"))]
         struct $struct_name<I: $trait_name> {
             inner: I,
         }
@@ -106,6 +108,7 @@ macro_rules! impl_io_uring {
 
 macro_rules! impl_nio_read {
     ( $struct_name:ident, $trait_name: ident, $syscall: ident($fd: ident : $fd_type: ty, $($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
+        #[repr(C)]
         #[derive(Debug, Default)]
         struct $struct_name<I: $trait_name> {
             inner: I,
@@ -154,6 +157,7 @@ macro_rules! impl_nio_read {
 macro_rules! impl_nio_read_buf {
     ( $struct_name:ident, $trait_name: ident, $syscall: ident($fd: ident : $fd_type: ty,
         $buf: ident : $buf_type: ty, $len: ident : $len_type: ty, $($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
+        #[repr(C)]
         #[derive(Debug, Default)]
         struct $struct_name<I: $trait_name> {
             inner: I,
@@ -217,6 +221,7 @@ macro_rules! impl_nio_read_buf {
 macro_rules! impl_nio_read_iovec {
     ( $struct_name:ident, $trait_name: ident, $syscall: ident($fd: ident : $fd_type: ty,
         $iov: ident : $iov_type: ty, $iovcnt: ident : $iovcnt_type: ty, $($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
+        #[repr(C)]
         #[derive(Debug, Default)]
         struct $struct_name<I: $trait_name> {
             inner: I,
@@ -320,6 +325,7 @@ macro_rules! impl_nio_read_iovec {
 macro_rules! impl_nio_write_buf {
     ( $struct_name:ident, $trait_name: ident, $syscall: ident($fd: ident : $fd_type: ty,
         $buf: ident : $buf_type: ty, $len: ident : $len_type: ty, $($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
+        #[repr(C)]
         #[derive(Debug, Default)]
         struct $struct_name<I: $trait_name> {
             inner: I,
@@ -383,6 +389,7 @@ macro_rules! impl_nio_write_buf {
 macro_rules! impl_nio_write_iovec {
     ( $struct_name:ident, $trait_name: ident, $syscall: ident($fd: ident : $fd_type: ty,
         $iov: ident : $iov_type: ty, $iovcnt: ident : $iovcnt_type: ty, $($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
+        #[repr(C)]
         #[derive(Debug, Default)]
         struct $struct_name<I: $trait_name> {
             inner: I,
@@ -479,6 +486,7 @@ macro_rules! impl_nio_write_iovec {
 
 macro_rules! impl_raw {
     ( $struct_name: ident, $trait_name: ident, $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
+        #[repr(C)]
         #[derive(Debug, Copy, Clone, Default)]
         struct $struct_name {}
 
