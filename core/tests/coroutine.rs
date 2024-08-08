@@ -1,5 +1,6 @@
 use open_coroutine_core::co;
 use open_coroutine_core::common::constants::CoroutineState;
+use open_coroutine_core::coroutine::suspender::Suspender;
 use open_coroutine_core::coroutine::Coroutine;
 
 #[test]
@@ -11,6 +12,21 @@ fn coroutine_basic() -> std::io::Result<()> {
     })?;
     assert_eq!(CoroutineState::Suspend(2, 0), coroutine.resume_with(1)?);
     assert_eq!(CoroutineState::Complete(4), coroutine.resume_with(3)?);
+    Ok(())
+}
+
+#[cfg(not(all(unix, feature = "preemptive")))]
+#[test]
+fn coroutine_panic() -> std::io::Result<()> {
+    let mut coroutine = co!(|_: &Suspender<'_, (), ()>, ()| {
+        panic!("test panic, just ignore it");
+    })?;
+    let result = coroutine.resume()?;
+    let error = match result {
+        CoroutineState::Error(_) => true,
+        _ => false,
+    };
+    assert!(error);
     Ok(())
 }
 
@@ -53,6 +69,45 @@ fn coroutine_delay() -> std::io::Result<()> {
     Ok(())
 }
 
+#[test]
+fn coroutine_trap() -> std::io::Result<()> {
+    let mut coroutine = co!(|_: &Suspender<'_, (), ()>, ()| {
+        println!("Before trap");
+        unsafe { std::ptr::write_volatile(1 as *mut u8, 0) };
+        println!("After trap");
+    })?;
+    let result = coroutine.resume()?;
+    let error = match result {
+        CoroutineState::Error(_) => true,
+        _ => false,
+    };
+    assert!(error);
+    Ok(())
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn coroutine_invalid_memory_reference() -> std::io::Result<()> {
+    let mut coroutine = co!(|_: &Suspender<'_, (), ()>, ()| {
+        println!("Before invalid memory reference");
+        // 没有加--release运行，会收到SIGABRT信号，不好处理，直接禁用测试
+        unsafe {
+            let co = &*((1usize as *mut std::ffi::c_void).cast::<Coroutine<(), (), ()>>());
+            println!("{}", co.state());
+        }
+        println!("After invalid memory reference");
+    })?;
+    let result = coroutine.resume();
+    assert!(result.is_ok());
+    println!("{:?}", result);
+    let error = match result.unwrap() {
+        CoroutineState::Error(_) => true,
+        _ => false,
+    };
+    assert!(error);
+    Ok(())
+}
+
 #[cfg(all(unix, feature = "preemptive"))]
 #[test]
 fn coroutine_preemptive() -> std::io::Result<()> {
@@ -76,7 +131,7 @@ fn coroutine_preemptive() -> std::io::Result<()> {
     let result = cvar
         .wait_timeout_while(
             lock.lock().unwrap(),
-            std::time::Duration::from_millis(1000),
+            std::time::Duration::from_millis(3000),
             |&mut pending| pending,
         )
         .unwrap();

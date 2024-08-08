@@ -326,7 +326,6 @@ where
     {
         let stack_size = stack_size.max(crate::common::page_size());
         let stack = DefaultStack::new(stack_size)?;
-        #[cfg(feature = "log")]
         let co_name = name.clone().leak();
         let inner = ScopedCoroutine::with_stack(stack, move |y, p| {
             catch!(
