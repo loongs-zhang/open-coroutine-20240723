@@ -45,7 +45,7 @@ macro_rules! co {
 mod state;
 
 impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
-    /// Get the name of this object.
+    /// Get the name of this coroutine.
     pub fn name(&self) -> &str {
         &self.name
     }

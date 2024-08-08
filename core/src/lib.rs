@@ -53,6 +53,9 @@ pub mod common;
 #[allow(dead_code)]
 pub mod coroutine;
 
+/// Scheduler impls.
+pub mod scheduler;
+
 /// net abstraction and impl.
 #[allow(dead_code)]
 #[cfg(feature = "net")]
