@@ -80,10 +80,8 @@ fn scheduler_delay() -> std::io::Result<()> {
 #[cfg(not(all(unix, feature = "preemptive")))]
 #[test]
 fn scheduler_listener() -> std::io::Result<()> {
-    use open_coroutine_core::common::constants::CoroutineState;
     use open_coroutine_core::coroutine::listener::Listener;
     use open_coroutine_core::coroutine::local::CoroutineLocal;
-    use open_coroutine_core::coroutine::Coroutine;
     use open_coroutine_core::scheduler::SchedulableCoroutineState;
 
     #[derive(Debug, Default)]
@@ -102,21 +100,11 @@ fn scheduler_listener() -> std::io::Result<()> {
             println!("{} {}->{}", local, old_state, new_state);
         }
 
-        fn on_complete(
-            &self,
-            _: &Coroutine<(), (), Option<usize>>,
-            _: CoroutineState<(), Option<usize>>,
-            _: Option<usize>,
-        ) {
+        fn on_complete(&self, _: &CoroutineLocal, _: SchedulableCoroutineState, _: Option<usize>) {
             panic!("test on_complete panic, just ignore it");
         }
 
-        fn on_error(
-            &self,
-            _: &Coroutine<(), (), Option<usize>>,
-            _: CoroutineState<(), Option<usize>>,
-            _: &str,
-        ) {
+        fn on_error(&self, _: &CoroutineLocal, _: SchedulableCoroutineState, _: &str) {
             panic!("test on_error panic, just ignore it");
         }
     }
