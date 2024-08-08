@@ -154,10 +154,7 @@ impl Monitor {
 
     #[allow(dead_code)]
     pub(crate) fn stop() {
-        assert_eq!(
-            MonitorState::Running,
-            Self::get_instance().state.replace(MonitorState::Stopping)
-        );
+        Self::get_instance().state.set(MonitorState::Stopping);
     }
 
     fn submit(timestamp: u64) -> std::io::Result<NotifyNode> {
