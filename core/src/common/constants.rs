@@ -9,6 +9,15 @@ pub const DEFAULT_STACK_SIZE: usize = 128 * 1024;
 #[cfg(all(target_os = "linux", feature = "io_uring"))]
 pub const IO_URING_TIMEOUT_USERDATA: usize = usize::MAX - 1;
 
+/// Coroutine global queue bean name.
+pub const COROUTINE_GLOBAL_QUEUE_BEAN: &str = "coroutineGlobalQueueBean";
+
+/// Task global queue bean name.
+pub const TASK_GLOBAL_QUEUE_BEAN: &str = "taskGlobalQueueBean";
+
+/// Monitor bean name.
+pub const MONITOR_BEAN: &str = "monitorBean";
+
 /// Default time slice.
 pub const SLICE: Duration = Duration::from_millis(10);
 
@@ -205,8 +214,6 @@ impl_display_by_debug!(SyscallState);
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum CoroutineState<Y, R> {
-    ///The coroutine is created.
-    Created,
     ///The coroutine is ready to run.
     Ready,
     ///The coroutine is running.

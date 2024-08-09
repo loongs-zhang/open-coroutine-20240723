@@ -43,6 +43,7 @@ impl_io_uring!(IoUringSendmsgSyscall, SendmsgSyscall,
     sendmsg(fd: c_int, msg: *const msghdr, flags: c_int) -> ssize_t
 );
 
+#[repr(C)]
 #[derive(Debug, Default)]
 struct NioSendmsgSyscall<I: SendmsgSyscall> {
     inner: I,

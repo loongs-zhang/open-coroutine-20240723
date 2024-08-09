@@ -43,6 +43,7 @@ impl_io_uring!(IoUringRecvmsgSyscall, RecvmsgSyscall,
     recvmsg(fd: c_int, msg: *mut msghdr, flags: c_int) -> ssize_t
 );
 
+#[repr(C)]
 #[derive(Debug, Default)]
 struct NioRecvmsgSyscall<I: RecvmsgSyscall> {
     inner: I,

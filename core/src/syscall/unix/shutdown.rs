@@ -35,6 +35,7 @@ impl_facade!(ShutdownSyscallFacade, ShutdownSyscall, shutdown(fd: c_int, how: c_
 
 impl_io_uring!(IoUringShutdownSyscall, ShutdownSyscall, shutdown(fd: c_int, how: c_int) -> c_int);
 
+#[repr(C)]
 #[derive(Debug, Default)]
 struct NioShutdownSyscall<I: ShutdownSyscall> {
     inner: I,

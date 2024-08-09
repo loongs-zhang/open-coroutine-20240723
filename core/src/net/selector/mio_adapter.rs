@@ -46,6 +46,7 @@ impl super::EventIterator<Event> for Events {
     }
 }
 
+#[repr(C)]
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub(crate) struct Poller {

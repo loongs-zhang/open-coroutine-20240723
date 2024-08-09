@@ -26,13 +26,24 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-      - env:
+      - name: Run tests
+        env:
           CHANNEL: ${{ matrix.channel }}
           CROSS: ${{ !startsWith(matrix.target, 'x86_64') && contains(matrix.target, 'linux') && '1' || '0' }}
           TARGET: ${{ matrix.target }}
           OS: ${{ matrix.os }}
           PROJECT_DIR: ${{ github.workspace }}
+        if: always()
         run: sh .github/workflows/ci.sh
+      - name: Run preemptive tests
+        env:
+          CHANNEL: ${{ matrix.channel }}
+          CROSS: ${{ !startsWith(matrix.target, 'x86_64') && contains(matrix.target, 'linux') && '1' || '0' }}
+          TARGET: ${{ matrix.target }}
+          OS: ${{ matrix.os }}
+          PROJECT_DIR: ${{ github.workspace }}
+        if: always()
+        run: sh .github/workflows/ci-preemptive.sh
 
     strategy:
       fail-fast: false

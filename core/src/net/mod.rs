@@ -1,3 +1,4 @@
+use crate::coroutine::suspender::Suspender;
 use crate::info;
 use crate::net::config::Config;
 use crate::net::event_loop::EventLoop;
@@ -8,6 +9,9 @@ use std::io::{Error, ErrorKind};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
+
+/// 做C兼容时会用到
+pub type UserFunc = extern "C" fn(*const Suspender<(), ()>, usize) -> usize;
 
 cfg_if::cfg_if! {
     if #[cfg(all(target_os = "linux", feature = "io_uring"))] {
@@ -39,6 +43,10 @@ pub struct EventLoops {
     shared_stop: Arc<(Mutex<AtomicUsize>, Condvar)>,
 }
 
+unsafe impl Send for EventLoops {}
+
+unsafe impl Sync for EventLoops {}
+
 impl EventLoops {
     /// Init the `EventLoops`.
     pub fn init(config: &Config) {
@@ -68,15 +76,26 @@ impl EventLoops {
     /// Create a new `EventLoops`.
     pub fn new(
         event_loop_size: usize,
-        _stack_size: usize,
-        _min_size: usize,
-        _max_size: usize,
-        _keep_alive_time: u64,
+        stack_size: usize,
+        min_size: usize,
+        max_size: usize,
+        keep_alive_time: u64,
     ) -> std::io::Result<Self> {
         let shared_stop = Arc::new((Mutex::new(AtomicUsize::new(0)), Condvar::new()));
         let mut loops = VecDeque::new();
         for i in 0..event_loop_size {
-            loops.push_back(EventLoop::new(i, shared_stop.clone())?.start()?);
+            loops.push_back(
+                EventLoop::new(
+                    format!("open-coroutine-event-loop-{i}"),
+                    i,
+                    stack_size,
+                    min_size,
+                    max_size,
+                    keep_alive_time,
+                    shared_stop.clone(),
+                )?
+                .start()?,
+            );
         }
         Ok(Self {
             index: AtomicUsize::new(0),
@@ -99,17 +118,28 @@ impl EventLoops {
         EventLoop::current().unwrap_or_else(|| Self::round_robin())
     }
 
-    // /// Submit a new task to event-loop.
-    // ///
-    // /// Allow multiple threads to concurrently submit task to the pool,
-    // /// but only allow one thread to execute scheduling.
-    // pub fn submit_task(
-    //     name: Option<String>,
-    //     func: impl FnOnce(Option<usize>) -> Option<usize> + UnwindSafe + 'static,
-    //     param: Option<usize>,
-    // ) -> std::io::Result<()> {
-    //     Self::round_robin().submit_task(name, func, param)
-    // }
+    /// Submit a new task to event-loop.
+    ///
+    /// Allow multiple threads to concurrently submit task to the pool,
+    /// but only allow one thread to execute scheduling.
+    pub fn submit_task(
+        name: Option<String>,
+        func: impl FnOnce(Option<usize>) -> Option<usize> + 'static,
+        param: Option<usize>,
+    ) -> std::io::Result<()> {
+        Self::round_robin().submit_task(name, func, param)
+    }
+
+    /// Submit a new coroutine to event-loop.
+    ///
+    /// Allow multiple threads to concurrently submit coroutine to the pool,
+    /// but only allow one thread to execute scheduling.
+    pub fn submit_co(
+        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 'static,
+        stack_size: Option<usize>,
+    ) -> std::io::Result<()> {
+        Self::round_robin().submit_co(f, stack_size)
+    }
 
     /// Waiting for read or write events to occur.
     /// This method can only be used in coroutines.
@@ -193,8 +223,8 @@ impl EventLoops {
             if result.1.timed_out() {
                 return Err(Error::new(ErrorKind::TimedOut, "stop timeout !"));
             }
-            // #[cfg(all(unix, feature = "preemptive"))]
-            // crate::monitor::Monitor::stop();
+            #[cfg(all(unix, feature = "preemptive"))]
+            crate::monitor::Monitor::stop();
         }
         Ok(())
     }

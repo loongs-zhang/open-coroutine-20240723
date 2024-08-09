@@ -39,6 +39,7 @@ impl_facade!(SelectSyscallFacade, SelectSyscall,
         errorfds: *mut fd_set, timeout: *mut timeval) -> c_int
 );
 
+#[repr(C)]
 #[derive(Debug, Default)]
 struct NioSelectSyscall<I: SelectSyscall> {
     inner: I,

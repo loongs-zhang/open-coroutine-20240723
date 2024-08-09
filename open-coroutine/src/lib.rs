@@ -50,8 +50,11 @@
 pub use open_coroutine_core::net::config::Config;
 pub use open_coroutine_macros::*;
 
+use open_coroutine_core::co_pool::task::UserTaskFunc;
 use open_coroutine_core::common::constants::SLICE;
-use std::ffi::{c_int, c_uint};
+use open_coroutine_core::coroutine::suspender::Suspender;
+use open_coroutine_core::net::UserFunc;
+use std::ffi::{c_int, c_uint, c_void};
 use std::io::{Error, ErrorKind};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
@@ -60,6 +63,10 @@ extern "C" {
     fn open_coroutine_init(config: Config) -> c_int;
 
     fn open_coroutine_stop(secs: c_uint) -> c_int;
+
+    fn task_crate(f: UserTaskFunc, param: usize) -> c_int;
+
+    fn coroutine_crate(f: UserFunc, param: usize, stack_size: usize) -> c_int;
 }
 
 /// Init the open-coroutine.
@@ -78,6 +85,79 @@ pub fn shutdown() {
         unsafe { open_coroutine_stop(30) },
         "open-coroutine shutdown failed !"
     );
+}
+
+/// Create a task.
+#[macro_export]
+macro_rules! task {
+    ( $f: expr , $param:expr $(,)? ) => {
+        $crate::task($f, $param)
+    };
+}
+
+/// Create a task.
+pub fn task<F, P: 'static, R: 'static>(f: F, param: P) -> c_int
+where
+    F: FnOnce(P) -> R + Copy,
+{
+    extern "C" fn co_main<F, P: 'static, R: 'static>(input: usize) -> usize
+    where
+        F: FnOnce(P) -> R + Copy,
+    {
+        unsafe {
+            let ptr = &mut *((input as *mut c_void).cast::<(F, P)>());
+            let data = std::ptr::read_unaligned(ptr);
+            let result: &'static mut R = Box::leak(Box::new((data.0)(data.1)));
+            std::ptr::from_mut::<R>(result).cast::<c_void>() as usize
+        }
+    }
+    let inner = Box::leak(Box::new((f, param)));
+    unsafe {
+        task_crate(
+            co_main::<F, P, R>,
+            std::ptr::from_mut::<(F, P)>(inner).cast::<c_void>() as usize,
+        )
+    }
+}
+
+/// Create a coroutine.
+#[macro_export]
+macro_rules! co {
+    ( $f: expr , $param:expr $(,)? ) => {{
+        $crate::co($f, $param, 128 * 1024)
+    }};
+    ( $f: expr , $param:expr ,$stack_size: expr $(,)?) => {{
+        $crate::co($f, $param, $stack_size)
+    }};
+}
+
+/// Create a coroutine.
+pub fn co<F, P: 'static, R: 'static>(f: F, param: P, stack_size: usize) -> c_int
+where
+    F: FnOnce(*const Suspender<(), ()>, P) -> R + Copy,
+{
+    extern "C" fn co_main<F, P: 'static, R: 'static>(
+        suspender: *const Suspender<(), ()>,
+        input: usize,
+    ) -> usize
+    where
+        F: FnOnce(*const Suspender<(), ()>, P) -> R + Copy,
+    {
+        unsafe {
+            let ptr = &mut *((input as *mut c_void).cast::<(F, P)>());
+            let data = std::ptr::read_unaligned(ptr);
+            let result: &'static mut R = Box::leak(Box::new((data.0)(suspender, data.1)));
+            std::ptr::from_mut::<R>(result).cast::<c_void>() as usize
+        }
+    }
+    let inner = Box::leak(Box::new((f, param)));
+    unsafe {
+        coroutine_crate(
+            co_main::<F, P, R>,
+            std::ptr::from_mut::<(F, P)>(inner).cast::<c_void>() as usize,
+            stack_size,
+        )
+    }
 }
 
 /// Opens a TCP connection to a remote host.

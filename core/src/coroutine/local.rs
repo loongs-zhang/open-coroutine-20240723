@@ -1,3 +1,4 @@
+use crate::impl_display_by_debug;
 use dashmap::DashMap;
 use std::ffi::c_void;
 use std::fmt::Debug;
@@ -40,6 +41,8 @@ impl<'c> CoroutineLocal<'c> {
             .map(|ptr| unsafe { *Box::from_raw((ptr.1 as *mut c_void).cast::<V>()) })
     }
 }
+
+impl_display_by_debug!(CoroutineLocal<'c>);
 
 #[cfg(test)]
 mod tests {

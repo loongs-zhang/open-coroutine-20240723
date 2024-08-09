@@ -30,6 +30,7 @@ impl_facade!(PollSyscallFacade, PollSyscall,
     poll(fds: *mut pollfd, nfds: nfds_t, timeout: c_int) -> c_int
 );
 
+#[repr(C)]
 #[derive(Debug, Default)]
 struct NioPollSyscall<I: PollSyscall> {
     inner: I,

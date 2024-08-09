@@ -52,6 +52,16 @@ pub mod common;
 /// Coroutine impls.
 pub mod coroutine;
 
+/// Make the coroutine automatically yield.
+#[cfg(all(unix, feature = "preemptive"))]
+mod monitor;
+
+/// Scheduler impls.
+pub mod scheduler;
+
+/// Coroutine pool abstraction and impl.
+pub mod co_pool;
+
 /// net abstraction and impl.
 #[allow(dead_code)]
 #[cfg(feature = "net")]
