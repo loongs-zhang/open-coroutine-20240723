@@ -1,5 +1,5 @@
 use crate::common::beans::BeanFactory;
-use crate::common::constants::{CoroutineState, MONITOR_BEAN, MONITOR_CPU};
+use crate::common::constants::{CoroutineState, MONITOR_BEAN};
 use crate::common::{get_timeout_time, now, CondvarBlocker};
 use crate::coroutine::listener::Listener;
 use crate::coroutine::local::CoroutineLocal;
@@ -44,7 +44,6 @@ impl_display_by_debug!(MonitorState);
 #[repr(C)]
 #[derive(Debug)]
 pub(crate) struct Monitor {
-    cpu: usize,
     notify_queue: UnsafeCell<HashSet<NotifyNode>>,
     state: Cell<MonitorState>,
     thread: UnsafeCell<MaybeUninit<JoinHandle<()>>>,
@@ -54,7 +53,6 @@ pub(crate) struct Monitor {
 impl Default for Monitor {
     fn default() -> Self {
         Monitor {
-            cpu: MONITOR_CPU,
             notify_queue: UnsafeCell::default(),
             state: Cell::new(MonitorState::Created),
             thread: UnsafeCell::new(MaybeUninit::uninit()),
@@ -123,10 +121,6 @@ impl Monitor {
     fn monitor_thread_main() {
         let monitor = Self::get_instance();
         Self::init_current(monitor);
-        // todo pin this thread to the CPU core closest to the network card
-        if set_for_current(CoreId { id: monitor.cpu }) {
-            error!("pin monitor thread to CPU core-{MONITOR_CPU} failed !");
-        }
         let notify_queue = unsafe { &*monitor.notify_queue.get() };
         while MonitorState::Running == monitor.state.get() || !notify_queue.is_empty() {
             //只遍历，不删除，如果抢占调度失败，会在1ms后不断重试，相当于主动检测
