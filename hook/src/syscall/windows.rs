@@ -27,12 +27,14 @@ pub unsafe extern "system" fn DllMain(
 /// Called when the DLL is attached to the process.
 unsafe fn attach() -> Result<(), Box<dyn Error>> {
     crochet::enable!(Sleep_hook)?;
+    eprintln!("Sleep hooked");
     Ok(())
 }
 
 /// Called when the DLL is detached to the process.
 unsafe fn detach() -> Result<(), Box<dyn Error>> {
     crochet::disable!(Sleep_hook)?;
+    eprintln!("Sleep unhooked");
     Ok(())
 }
 
