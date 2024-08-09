@@ -5,7 +5,6 @@ use crate::coroutine::listener::Listener;
 use crate::coroutine::local::CoroutineLocal;
 use crate::scheduler::SchedulableSuspender;
 use crate::{catch, error, impl_current_for, impl_display_by_debug, info};
-use core_affinity::{set_for_current, CoreId};
 use nix::sys::pthread::{pthread_kill, pthread_self, Pthread};
 use nix::sys::signal::{sigaction, SaFlags, SigAction, SigHandler, SigSet, Signal};
 use std::cell::{Cell, UnsafeCell};
