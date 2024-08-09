@@ -362,7 +362,9 @@ impl<'p> CoroutinePool<'p> {
 
     fn do_schedule_task(&mut self, timeout_time: u64) -> std::io::Result<u64> {
         match self.state() {
-            PoolState::Running | PoolState::Stopping => self.try_grow()?,
+            PoolState::Running | PoolState::Stopping => {
+                _ = self.try_grow();
+            }
             PoolState::Stopped => {
                 return Err(Error::new(
                     ErrorKind::Other,

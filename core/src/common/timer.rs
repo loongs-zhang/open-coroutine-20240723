@@ -1,3 +1,4 @@
+use crate::impl_display_by_debug;
 use derivative::Derivative;
 use std::collections::{BTreeMap, VecDeque};
 use std::ops::{Deref, DerefMut};
@@ -56,6 +57,8 @@ impl<T> TimerEntry<T> {
         self.inner.remove(index)
     }
 }
+
+impl_display_by_debug!(TimerEntry<T>);
 
 /// A queue for managing multiple `TimerEntry`.
 #[repr(C)]
@@ -177,6 +180,8 @@ impl<T> TimerList<T> {
         None
     }
 }
+
+impl_display_by_debug!(TimerList<T>);
 
 #[cfg(test)]
 mod tests {

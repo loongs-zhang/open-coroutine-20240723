@@ -281,8 +281,7 @@ impl<'s> Scheduler<'s> {
                 }
                 if let Some((_, mut entry)) = self.syscall_suspend.pop_front() {
                     while let Some(co_name) = entry.pop_front() {
-                        if let Some(r) = self.syscall.remove(&co_name) {
-                            let co = r.1;
+                        if let Some((_, co)) = self.syscall.remove(&co_name) {
                             match co.state() {
                                 CoroutineState::SystemCall(
                                     val,
