@@ -47,6 +47,7 @@
 )]
 //! see `https://github.com/acl-dev/open-coroutine`
 
+use open_coroutine_core::co_pool::task::UserFunc;
 use open_coroutine_core::net::config::Config;
 use open_coroutine_core::net::EventLoops;
 use std::ffi::{c_int, c_uint};
@@ -77,6 +78,24 @@ pub extern "C" fn open_coroutine_init(config: Config) -> c_int {
 #[no_mangle]
 pub extern "C" fn open_coroutine_stop(secs: c_uint) -> c_int {
     if EventLoops::stop(Duration::from_secs(u64::from(secs))).is_ok() {
+        return 0;
+    }
+    -1
+}
+
+///创建任务
+#[no_mangle]
+pub extern "C" fn task_crate(f: UserFunc, param: usize) -> c_int {
+    if EventLoops::submit_task(None, move |p| Some(f(p.unwrap_or(0))), Some(param)).is_ok() {
+        return 0;
+    }
+    -1
+}
+
+///创建协程
+#[no_mangle]
+pub extern "C" fn co_grow() -> c_int {
+    if EventLoops::try_grow().is_ok() {
         return 0;
     }
     -1

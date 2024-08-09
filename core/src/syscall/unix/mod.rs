@@ -40,24 +40,21 @@ macro_rules! impl_facade {
                 fn_ptr: Option<&extern "C" fn($($arg_type),*) -> $result>,
                 $($arg: $arg_type),*
             ) -> $result {
-                // use $crate::constants::{Syscall, SyscallState};
-                // use $crate::scheduler::SchedulableCoroutine;
-                //
                 let syscall = $crate::common::constants::Syscall::$syscall;
                 $crate::info!("enter syscall {}", syscall);
-                // if let Some(co) = SchedulableCoroutine::current() {
-                //     let new_state = SyscallState::Executing;
-                //     if co.syscall((), syscall, new_state).is_err() {
-                //         $crate::error!("{} change to syscall {} {} failed !",
-                //             co.get_name(), syscall, new_state);
-                //     }
-                // }
+                if let Some(co) = $crate::scheduler::SchedulableCoroutine::current() {
+                    let new_state = $crate::common::constants::SyscallState::Executing;
+                    if co.syscall((), syscall, new_state).is_err() {
+                        $crate::error!("{} change to syscall {} {} failed !",
+                            co.name(), syscall, new_state);
+                    }
+                }
                 let r = self.inner.$syscall(fn_ptr, $($arg, )*);
-                // if let Some(co) = SchedulableCoroutine::current() {
-                //     if co.running().is_err() {
-                //         $crate::error!("{} change to running state failed !", co.get_name());
-                //     }
-                // }
+                if let Some(co) = $crate::scheduler::SchedulableCoroutine::current() {
+                    if co.running().is_err() {
+                        $crate::error!("{} change to running state failed !", co.name());
+                    }
+                }
                 $crate::info!("exit syscall {}", syscall);
                 r
             }
@@ -83,6 +80,41 @@ macro_rules! impl_io_uring {
                 $($arg: $arg_type),*
             ) -> $result {
                 if let Ok(arc) = $crate::net::EventLoops::$syscall($($arg, )*) {
+                    use $crate::common::constants::{CoroutineState, SyscallState};
+                    use $crate::scheduler::{SchedulableCoroutine, SchedulableSuspender};
+
+                    if let Some(co) = SchedulableCoroutine::current() {
+                        if let CoroutineState::SystemCall((), syscall, SyscallState::Executing) = co.state()
+                        {
+                            let new_state = SyscallState::Suspend(u64::MAX);
+                            if co.syscall((), syscall, new_state).is_err() {
+                                $crate::error!(
+                                    "{} change to syscall {} {} failed !",
+                                    co.name(),
+                                    syscall,
+                                    new_state
+                                );
+                            }
+                        }
+                    }
+                    if let Some(suspender) = SchedulableSuspender::current() {
+                        suspender.suspend();
+                        //回来的时候，系统调用已经执行完了
+                    }
+                    if let Some(co) = SchedulableCoroutine::current() {
+                        if let CoroutineState::SystemCall((), syscall, SyscallState::Callback) = co.state()
+                        {
+                            let new_state = SyscallState::Executing;
+                            if co.syscall((), syscall, new_state).is_err() {
+                                $crate::error!(
+                                    "{} change to syscall {} {} failed !",
+                                    co.name(),
+                                    syscall,
+                                    new_state
+                                );
+                            }
+                        }
+                    }
                     let (lock, cvar) = &*arc;
                     let mut syscall_result: $result = cvar
                         .wait_while(lock.lock().expect("lock failed"),

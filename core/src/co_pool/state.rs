@@ -31,11 +31,11 @@ impl CoroutinePool<'_> {
     ) -> std::io::Result<PoolState> {
         let current = self.state();
         if current == new_state {
-            return Ok(new_state);
+            return Ok(old_state);
         }
         if current == old_state {
             assert_eq!(old_state, self.state.replace(new_state));
-            return Ok(new_state);
+            return Ok(old_state);
         }
         Err(Error::new(
             ErrorKind::Other,

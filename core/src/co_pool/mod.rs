@@ -190,9 +190,9 @@ impl<'p> CoroutinePool<'p> {
     pub fn stop(&mut self, dur: Duration) -> std::io::Result<()> {
         match self.state() {
             PoolState::Running => {
-                assert_eq!(PoolState::Stopping, self.stopping()?);
+                assert_eq!(PoolState::Running, self.stopping()?);
                 _ = self.try_timed_schedule_task(dur)?;
-                assert_eq!(PoolState::Stopped, self.stopped()?);
+                assert_eq!(PoolState::Stopping, self.stopped()?);
                 Ok(())
             }
             PoolState::Stopping => Err(Error::new(ErrorKind::Other, "should never happens")),
@@ -240,7 +240,11 @@ impl<'p> CoroutinePool<'p> {
         }
     }
 
-    fn try_grow(&self) -> std::io::Result<()> {
+    /// Create a coroutine in this pool.
+    ///
+    /// # Errors
+    /// if create failed.
+    pub fn try_grow(&self) -> std::io::Result<()> {
         if self.task_queue.is_empty() {
             // No task to run
             return Ok(());

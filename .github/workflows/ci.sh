@@ -35,6 +35,6 @@ if [ "${TARGET}" = "x86_64-unknown-linux-gnu" ]; then
     "${CARGO}" test --target "${TARGET}" --no-default-features --features io_uring
     "${CARGO}" test --target "${TARGET}" --no-default-features --features io_uring --release
     cd "${PROJECT_DIR}"/open-coroutine
-    "${CARGO}" test --target "${TARGET}" --features io_uring
-    "${CARGO}" test --target "${TARGET}" --features io_uring --release
+    "${CARGO}" test --target "${TARGET}" --no-default-features --features io_uring
+    "${CARGO}" test --target "${TARGET}" --no-default-features --features io_uring --release
 fi

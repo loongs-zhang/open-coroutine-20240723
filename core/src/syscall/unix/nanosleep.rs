@@ -45,6 +45,20 @@ impl NanosleepSyscall for NioNanosleepSyscall {
             return -1;
         }
         let time = Duration::new(rqtp.tv_sec as u64, rqtp.tv_nsec as u32);
+        if let Some(co) = crate::scheduler::SchedulableCoroutine::current() {
+            let syscall = crate::common::constants::Syscall::nanosleep;
+            let new_state = crate::common::constants::SyscallState::Suspend(
+                crate::common::get_timeout_time(time),
+            );
+            if co.syscall((), syscall, new_state).is_err() {
+                crate::error!(
+                    "{} change to syscall {} {} failed !",
+                    co.name(),
+                    syscall,
+                    new_state
+                );
+            }
+        }
         //等待事件到来
         _ = EventLoops::wait_event(Some(time));
         reset_errno();

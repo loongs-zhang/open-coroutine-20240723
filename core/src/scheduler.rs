@@ -152,9 +152,8 @@ impl<'s> Scheduler<'s> {
     ///
     /// # Errors
     /// if change to ready fails.
-    pub fn try_resume(&self, co_name: &'s str) -> std::io::Result<()> {
-        if let Some(r) = self.syscall.remove(&co_name) {
-            let co = r.1;
+    pub fn try_resume(&self, co_name: &'s str) {
+        if let Some((_, co)) = self.syscall.remove(&co_name) {
             match co.state() {
                 CoroutineState::SystemCall(val, syscall, SyscallState::Suspend(_)) => {
                     co.syscall(val, syscall, SyscallState::Callback)
@@ -164,7 +163,6 @@ impl<'s> Scheduler<'s> {
             }
             self.ready.push_back(co);
         }
-        Ok(())
     }
 
     /// Schedule the coroutines.

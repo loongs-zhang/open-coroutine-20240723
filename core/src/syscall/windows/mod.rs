@@ -14,24 +14,21 @@ macro_rules! impl_facade {
                 fn_ptr: Option<&retour::StaticDetour<unsafe extern "system" fn($($arg_type),*) -> $result>>,
                 $($arg: $arg_type),*
             ) -> $result {
-                // use $crate::constants::{Syscall, SyscallState};
-                // use $crate::scheduler::SchedulableCoroutine;
-                //
                 let syscall = $crate::common::constants::Syscall::$syscall;
                 $crate::info!("enter syscall {}", syscall);
-                // if let Some(co) = SchedulableCoroutine::current() {
-                //     let new_state = SyscallState::Executing;
-                //     if co.syscall((), syscall, new_state).is_err() {
-                //         $crate::error!("{} change to syscall {} {} failed !",
-                //             co.get_name(), syscall, new_state);
-                //     }
-                // }
+                if let Some(co) = $crate::scheduler::SchedulableCoroutine::current() {
+                    let new_state = $crate::common::constants::SyscallState::Executing;
+                    if co.syscall((), syscall, new_state).is_err() {
+                        $crate::error!("{} change to syscall {} {} failed !",
+                            co.name(), syscall, new_state);
+                    }
+                }
                 let r = self.inner.$syscall(fn_ptr, $($arg, )*);
-                // if let Some(co) = SchedulableCoroutine::current() {
-                //     if co.running().is_err() {
-                //         $crate::error!("{} change to running state failed !", co.get_name());
-                //     }
-                // }
+                if let Some(co) = $crate::scheduler::SchedulableCoroutine::current() {
+                    if co.running().is_err() {
+                        $crate::error!("{} change to running state failed !", co.name());
+                    }
+                }
                 $crate::info!("exit syscall {}", syscall);
                 r
             }
