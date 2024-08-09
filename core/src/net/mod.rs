@@ -1,3 +1,4 @@
+use crate::coroutine::suspender::Suspender;
 use crate::info;
 use crate::net::config::Config;
 use crate::net::event_loop::EventLoop;
@@ -8,6 +9,9 @@ use std::io::{Error, ErrorKind};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
+
+/// 做C兼容时会用到
+pub type UserFunc = extern "C" fn(*const Suspender<(), ()>, usize) -> usize;
 
 cfg_if::cfg_if! {
     if #[cfg(all(target_os = "linux", feature = "io_uring"))] {
@@ -126,9 +130,15 @@ impl EventLoops {
         Self::round_robin().submit_task(name, func, param)
     }
 
-    /// Create a coroutine to the event-loop.
-    pub fn try_grow() -> std::io::Result<()> {
-        Self::round_robin().try_grow()
+    /// Submit a new coroutine to event-loop.
+    ///
+    /// Allow multiple threads to concurrently submit coroutine to the pool,
+    /// but only allow one thread to execute scheduling.
+    pub fn submit_co(
+        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 'static,
+        stack_size: Option<usize>,
+    ) -> std::io::Result<()> {
+        Self::round_robin().submit_co(f, stack_size)
     }
 
     /// Waiting for read or write events to occur.

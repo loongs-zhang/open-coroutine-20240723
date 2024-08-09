@@ -2,7 +2,7 @@ use crate::catch;
 use derivative::Derivative;
 
 /// 做C兼容时会用到
-pub type UserFunc = extern "C" fn(usize) -> usize;
+pub type UserTaskFunc = extern "C" fn(usize) -> usize;
 
 /// The task impls.
 #[repr(C)]

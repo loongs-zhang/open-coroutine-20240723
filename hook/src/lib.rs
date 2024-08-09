@@ -47,9 +47,9 @@
 )]
 //! see `https://github.com/acl-dev/open-coroutine`
 
-use open_coroutine_core::co_pool::task::UserFunc;
+use open_coroutine_core::co_pool::task::UserTaskFunc;
 use open_coroutine_core::net::config::Config;
-use open_coroutine_core::net::EventLoops;
+use open_coroutine_core::net::{EventLoops, UserFunc};
 use std::ffi::{c_int, c_uint};
 use std::time::Duration;
 
@@ -85,7 +85,7 @@ pub extern "C" fn open_coroutine_stop(secs: c_uint) -> c_int {
 
 ///创建任务
 #[no_mangle]
-pub extern "C" fn task_crate(f: UserFunc, param: usize) -> c_int {
+pub extern "C" fn task_crate(f: UserTaskFunc, param: usize) -> c_int {
     if EventLoops::submit_task(None, move |p| Some(f(p.unwrap_or(0))), Some(param)).is_ok() {
         return 0;
     }
@@ -94,8 +94,18 @@ pub extern "C" fn task_crate(f: UserFunc, param: usize) -> c_int {
 
 ///创建协程
 #[no_mangle]
-pub extern "C" fn co_grow() -> c_int {
-    if EventLoops::try_grow().is_ok() {
+pub extern "C" fn coroutine_crate(f: UserFunc, param: usize, stack_size: usize) -> c_int {
+    let stack_size = if stack_size > 0 {
+        Some(stack_size)
+    } else {
+        None
+    };
+    if EventLoops::submit_co(
+        move |suspender, ()| Some(f(std::ptr::from_ref(suspender), param)),
+        stack_size,
+    )
+    .is_ok()
+    {
         return 0;
     }
     -1

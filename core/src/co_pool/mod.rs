@@ -4,6 +4,7 @@ use crate::common::beans::BeanFactory;
 use crate::common::constants::PoolState;
 use crate::common::work_steal::{LocalQueue, WorkStealQueue};
 use crate::common::{get_timeout_time, now, CondvarBlocker};
+use crate::coroutine::suspender::Suspender;
 use crate::scheduler::Scheduler;
 use crate::{impl_current_for, impl_display_by_debug, impl_for_named};
 use dashmap::DashMap;
@@ -240,17 +241,13 @@ impl<'p> CoroutinePool<'p> {
         }
     }
 
-    /// Create a coroutine in this pool.
+    /// Try to create a coroutine in this pool.
     ///
     /// # Errors
     /// if create failed.
-    pub fn try_grow(&self) -> std::io::Result<()> {
+    fn try_grow(&self) -> std::io::Result<()> {
         if self.task_queue.is_empty() {
             // No task to run
-            return Ok(());
-        }
-        if self.get_running_size() >= self.get_max_size() {
-            // The coroutine pool has reached its maximum size
             return Ok(());
         }
         let create_time = now();
@@ -283,7 +280,24 @@ impl<'p> CoroutinePool<'p> {
             },
             None,
         )
-        .map(|()| {
+    }
+
+    /// Try to create a coroutine in this pool.
+    ///
+    /// # Errors
+    /// if create failed.
+    pub fn submit_co(
+        &self,
+        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 'static,
+        stack_size: Option<usize>,
+    ) -> std::io::Result<()> {
+        if self.get_running_size() >= self.get_max_size() {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "The coroutine pool has reached its maximum size !",
+            ));
+        }
+        self.deref().submit_co(f, stack_size).map(|()| {
             _ = self.running.fetch_add(1, Ordering::Release);
         })
     }
