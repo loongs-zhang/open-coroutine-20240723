@@ -1,5 +1,5 @@
 #![cfg(unix)]
-use open_coroutine::co;
+use open_coroutine::task;
 use std::io::{Error, ErrorKind, IoSlice, IoSliceMut, Read, Write};
 use std::net::{Shutdown, TcpListener, ToSocketAddrs};
 use std::sync::{Arc, Condvar, Mutex};
@@ -8,7 +8,7 @@ use std::time::Duration;
 pub fn start_co_server<A: ToSocketAddrs>(addr: A, server_finished: Arc<(Mutex<bool>, Condvar)>) {
     let listener = TcpListener::bind(addr).expect("start server failed");
     for stream in listener.incoming() {
-        _ = co!(
+        _ = task!(
             |_, mut socket| {
                 let mut buffer1 = [0; 256];
                 for _ in 0..3 {
@@ -53,7 +53,7 @@ pub fn start_co_server<A: ToSocketAddrs>(addr: A, server_finished: Arc<(Mutex<bo
 }
 
 pub fn start_co_client<A: ToSocketAddrs>(addr: A) {
-    _ = co!(
+    _ = task!(
         |_, mut stream| {
             let mut buffer1 = [0; 256];
             for i in 0..3 {

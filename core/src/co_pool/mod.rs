@@ -6,7 +6,7 @@ use crate::common::work_steal::{LocalQueue, WorkStealQueue};
 use crate::common::{get_timeout_time, now, CondvarBlocker};
 use crate::coroutine::suspender::Suspender;
 use crate::scheduler::Scheduler;
-use crate::{impl_current_for, impl_display_by_debug, impl_for_named};
+use crate::{impl_current_for, impl_display_by_debug, impl_for_named, trace};
 use dashmap::DashMap;
 use std::cell::Cell;
 use std::io::{Error, ErrorKind};
@@ -222,7 +222,6 @@ impl<'p> CoroutinePool<'p> {
         }
         let name = name.unwrap_or(format!("{}@{}", self.name(), uuid::Uuid::new_v4()));
         self.submit_raw_task(Task::new(name.clone(), func, param));
-        self.blocker.notify();
         Ok(())
     }
 
@@ -232,6 +231,7 @@ impl<'p> CoroutinePool<'p> {
     /// but only allow one thread to execute scheduling.
     pub(crate) fn submit_raw_task(&self, task: Task<'p>) {
         self.task_queue.push_back(task);
+        self.blocker.notify();
     }
 
     fn can_recycle(&self) -> bool {
@@ -248,6 +248,7 @@ impl<'p> CoroutinePool<'p> {
     fn try_grow(&self) -> std::io::Result<()> {
         if self.task_queue.is_empty() {
             // No task to run
+            trace!("The coroutine pool:{} has no task !", self.name());
             return Ok(());
         }
         let create_time = now();
@@ -288,10 +289,14 @@ impl<'p> CoroutinePool<'p> {
     /// if create failed.
     pub fn submit_co(
         &self,
-        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 'static,
+        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 'p,
         stack_size: Option<usize>,
     ) -> std::io::Result<()> {
         if self.get_running_size() >= self.get_max_size() {
+            trace!(
+                "The coroutine pool:{} has reached its maximum size !",
+                self.name()
+            );
             return Err(Error::new(
                 ErrorKind::Other,
                 "The coroutine pool has reached its maximum size !",
@@ -354,13 +359,6 @@ impl<'p> CoroutinePool<'p> {
     /// # Errors
     /// if change to ready fails.
     pub fn try_timeout_schedule_task(&mut self, timeout_time: u64) -> std::io::Result<u64> {
-        Self::init_current(self);
-        let left_time = self.do_schedule_task(timeout_time);
-        Self::clean_current();
-        left_time
-    }
-
-    fn do_schedule_task(&mut self, timeout_time: u64) -> std::io::Result<u64> {
         match self.state() {
             PoolState::Running | PoolState::Stopping => {
                 _ = self.try_grow();
@@ -372,6 +370,9 @@ impl<'p> CoroutinePool<'p> {
                 ))
             }
         }
-        self.try_timeout_schedule(timeout_time)
+        Self::init_current(self);
+        let left_time = self.try_timeout_schedule(timeout_time);
+        Self::clean_current();
+        left_time
     }
 }

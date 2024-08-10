@@ -116,7 +116,7 @@ impl<'s> Scheduler<'s> {
     /// if create coroutine fails.
     pub fn submit_co(
         &self,
-        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 'static,
+        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 's,
         stack_size: Option<usize>,
     ) -> std::io::Result<()> {
         let mut co = co!(
@@ -132,7 +132,7 @@ impl<'s> Scheduler<'s> {
     }
 
     /// Add a listener to this scheduler.
-    pub fn add_listener(&mut self, listener: impl Listener<(), Option<usize>> + 'static) {
+    pub fn add_listener(&mut self, listener: impl Listener<(), Option<usize>> + 's) {
         self.listeners.push_back(Box::leak(Box::new(listener)));
     }
 
