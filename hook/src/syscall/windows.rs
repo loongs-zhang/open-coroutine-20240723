@@ -1,25 +1,33 @@
-use std::error::Error;
-use std::ffi::{c_void, CString};
-use windows_sys::Win32::Foundation::BOOL;
-use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
-use windows_sys::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
+use std::ffi::c_void;
+use std::io::{Error, ErrorKind};
+use windows_sys::Win32::Foundation::{BOOL, TRUE};
+use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
 
 // check https://www.rustwiki.org.cn/en/reference/introduction.html for help information
 #[allow(unused_macros)]
 macro_rules! impl_hook {
     ( $module_name: expr, $field_name: ident, $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
-        let syscall_name = open_coroutine_core::common::constants::Syscall::$syscall.into();
-        let address = get_module_symbol_address($module_name, syscall_name)
-            .unwrap_or_else(|| panic!("could not find {syscall_name} address"));
-        let target: unsafe extern "system" fn($($arg_type),*) = std::mem::transmute(address);
-        retour::static_detour! {
-            static $field_name: unsafe extern "system" fn($($arg_type),*);
-        }
+        static $field_name: once_cell::sync::OnceCell<extern "system" fn($($arg_type),*) -> $result> =
+            once_cell::sync::OnceCell::new();
+        _ = $field_name.get_or_init(|| unsafe {
+            let syscall: &str = open_coroutine_core::common::constants::Syscall::$syscall.into();
+            let ptr = minhook::MinHook::create_hook_api($module_name, syscall, $syscall as _)
+                .unwrap_or_else(|_| panic!("hook {syscall} failed !"));
+            assert!(!ptr.is_null(), "syscall \"{syscall}\" not found !");
+            std::mem::transmute(ptr)
+        });
         #[allow(non_snake_case)]
-        fn $syscall($($arg: $arg_type),*) {
-            open_coroutine_core::syscall::$syscall(Some(&$field_name), $($arg),*);
+        extern "system" fn $syscall($($arg: $arg_type),*) -> $result {
+            open_coroutine_core::syscall::$syscall(
+                Some($field_name.get().unwrap_or_else(|| {
+                    panic!(
+                        "hook {} failed !",
+                        open_coroutine_core::common::constants::Syscall::$syscall
+                    )
+                })),
+                $($arg),*
+            );
         }
-        $field_name.initialize(target, $syscall)?.enable()?;
     }
 }
 
@@ -30,33 +38,22 @@ pub unsafe extern "system" fn DllMain(
     call_reason: u32,
     _reserved: *mut c_void,
 ) -> BOOL {
+    // Preferably a thread should be created here instead, since as few
+    // operations as possible should be performed within `DllMain`.
     if call_reason == DLL_PROCESS_ATTACH {
-        // A console may be useful for printing to 'stdout'
-        // winapi::um::consoleapi::AllocConsole();
-
-        // Preferably a thread should be created here instead, since as few
-        // operations as possible should be performed within `DllMain`.
-        BOOL::from(main().is_ok())
+        // Called when the DLL is attached to the process.
+        BOOL::from(attach().is_ok())
+    } else if call_reason == DLL_PROCESS_DETACH {
+        // Called when the DLL is detached to the process.
+        BOOL::from(minhook::MinHook::disable_all_hooks().is_ok())
     } else {
-        1
+        TRUE
     }
 }
 
-/// Called when the DLL is attached to the process.
-unsafe fn main() -> Result<(), Box<dyn Error>> {
+unsafe fn attach() -> std::io::Result<()> {
     impl_hook!("kernel32.dll", SLEEP, Sleep(dw_milliseconds: u32) -> ());
-    Ok(())
-}
-
-/// Returns a module symbol's absolute address.
-fn get_module_symbol_address(module: &str, symbol: &str) -> Option<usize> {
-    let module = module
-        .encode_utf16()
-        .chain(std::iter::once(0))
-        .collect::<Vec<u16>>();
-    let symbol = CString::new(symbol).unwrap();
-    unsafe {
-        let handle = GetModuleHandleW(module.as_ptr());
-        GetProcAddress(handle, symbol.as_ptr().cast()).map(|n| n as usize)
-    }
+    // Enable the hook
+    minhook::MinHook::enable_all_hooks()
+        .map_err(|_| Error::new(ErrorKind::Other, "init all hooks failed !"))
 }

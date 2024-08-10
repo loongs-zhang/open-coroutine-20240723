@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 use std::time::Duration;
 
 thread_local! {
+    #[allow(clippy::missing_const_for_thread_local)]
     static TIMESTAMP: RefCell<VecDeque<u64>> = const { RefCell::new(VecDeque::new()) };
 }
 

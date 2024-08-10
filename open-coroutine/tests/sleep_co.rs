@@ -1,12 +1,16 @@
 use open_coroutine::task;
 use open_coroutine_core::common::now;
-use std::time::Duration;
 
 pub fn sleep_test_co(millis: u64) {
     _ = task!(
         move |_| {
             let start = now();
-            std::thread::sleep(Duration::from_millis(millis));
+            #[cfg(unix)]
+            std::thread::sleep(std::time::Duration::from_millis(millis));
+            #[cfg(windows)]
+            unsafe {
+                windows_sys::Win32::System::Threading::Sleep(millis as u32);
+            }
             let end = now();
             assert!(end - start >= millis, "Time consumption less than expected");
             println!("[coroutine1] {millis} launched");
@@ -15,12 +19,22 @@ pub fn sleep_test_co(millis: u64) {
     );
     _ = task!(
         move |_| {
-            std::thread::sleep(Duration::from_millis(500));
+            #[cfg(unix)]
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            #[cfg(windows)]
+            unsafe {
+                windows_sys::Win32::System::Threading::Sleep(500);
+            }
             println!("[coroutine2] {millis} launched");
         },
         (),
     );
-    std::thread::sleep(Duration::from_millis(millis + 500));
+    #[cfg(unix)]
+    std::thread::sleep(std::time::Duration::from_millis(millis + 500));
+    #[cfg(windows)]
+    unsafe {
+        windows_sys::Win32::System::Threading::Sleep((millis + 500) as u32);
+    }
 }
 
 #[test]

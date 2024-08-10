@@ -1,6 +1,5 @@
 use open_coroutine::task;
 use open_coroutine_core::common::now;
-use std::time::Duration;
 
 fn sleep_test(millis: u64) {
     _ = task!(
@@ -16,7 +15,12 @@ fn sleep_test(millis: u64) {
         (),
     );
     let start = now();
-    std::thread::sleep(Duration::from_millis(millis));
+    #[cfg(unix)]
+    std::thread::sleep(std::time::Duration::from_millis(millis));
+    #[cfg(windows)]
+    unsafe {
+        windows_sys::Win32::System::Threading::Sleep(millis as u32);
+    }
     let end = now();
     assert!(end - start >= millis, "Time consumption less than expected");
 }

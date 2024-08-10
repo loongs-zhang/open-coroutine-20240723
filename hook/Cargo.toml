@@ -27,7 +27,7 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_LibraryLoader",
     "Win32_System_SystemServices"
 ] }
-retour = { version = "0.3", features = ["static-detour"] }
+minhook = "0.5.0"
 
 [features]
 # Print some help log.
