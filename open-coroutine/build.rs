@@ -3,8 +3,39 @@ use std::fs::{read_dir, rename};
 use std::path::PathBuf;
 
 fn main() {
-    //fix dylib name
+    // build dylib
+    let target = var("TARGET").expect("env not found");
     let out_dir = PathBuf::from(var("OUT_DIR").expect("env not found"));
+    let cargo_manifest_dir = PathBuf::from(var("CARGO_MANIFEST_DIR").expect("env not found"));
+    let mut cargo = std::process::Command::new("cargo");
+    let mut cmd = cargo.arg("build").arg("--target").arg(target.clone());
+    if cfg!(not(debug_assertions)) {
+        cmd = cmd.arg("--release");
+    }
+    if let Err(e) = cmd
+        .arg("--manifest-path")
+        .arg(
+            cargo_manifest_dir
+                .parent()
+                .expect("parent not found")
+                .join("hook")
+                .join("Cargo.toml"),
+        )
+        .arg("--target-dir")
+        .arg(out_dir.clone())
+        .status()
+    {
+        panic!("failed to build build dylib {e}");
+    }
+    //fix dylib name
+    let hook_deps = out_dir
+        .join(target)
+        .join(if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        })
+        .join("deps");
     let deps = out_dir
         .parent()
         .expect("can not find deps dir")
@@ -18,7 +49,7 @@ fn main() {
         String::from("libopen_coroutine_hook.dylib"),
         String::from("open_coroutine_hook.lib"),
     ];
-    for entry in read_dir(deps.clone())
+    for entry in read_dir(hook_deps.clone())
         .expect("Failed to read deps")
         .flatten()
     {
@@ -33,23 +64,30 @@ fn main() {
             continue;
         }
         if cfg!(target_os = "linux") && file_name.ends_with(".so") {
-            rename(deps.join(file_name), deps.join("libopen_coroutine_hook.so"))
-                .expect("rename to libopen_coroutine_hook.so failed!");
+            rename(
+                hook_deps.join(file_name),
+                deps.join("libopen_coroutine_hook.so"),
+            )
+            .expect("rename to libopen_coroutine_hook.so failed!");
         } else if cfg!(target_os = "macos") && file_name.ends_with(".dylib") {
             rename(
-                deps.join(file_name),
+                hook_deps.join(file_name),
                 deps.join("libopen_coroutine_hook.dylib"),
             )
             .expect("rename to libopen_coroutine_hook.dylib failed!");
         } else if cfg!(windows) {
             if file_name.ends_with(".dll") {
-                rename(deps.join(file_name), deps.join("open_coroutine_hook.dll"))
-                    .expect("rename to open_coroutine_hook.dll failed!");
+                rename(
+                    hook_deps.join(file_name),
+                    deps.join("open_coroutine_hook.dll"),
+                )
+                .expect("rename to open_coroutine_hook.dll failed!");
             } else if file_name.ends_with(".lib") {
-                //fixme when link targets like ${arch}-pc-windows-msvc, this will not work
-                // it seems that .dll.lib has not been generated at this time
-                rename(deps.join(file_name), deps.join("open_coroutine_hook.lib"))
-                    .expect("rename to open_coroutine_hook.lib failed!");
+                rename(
+                    hook_deps.join(file_name),
+                    deps.join("open_coroutine_hook.lib"),
+                )
+                .expect("rename to open_coroutine_hook.lib failed!");
             }
         }
     }
