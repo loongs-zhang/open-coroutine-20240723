@@ -5,7 +5,6 @@ use std::collections::VecDeque;
 use std::time::Duration;
 
 thread_local! {
-    #[allow(clippy::missing_const_for_thread_local)]
     static TIMESTAMP: RefCell<VecDeque<u64>> = const { RefCell::new(VecDeque::new()) };
 }
 
@@ -50,7 +49,6 @@ impl_current_for!(SUSPENDER, Suspender<'s, Param, Yield>);
 
 #[cfg(feature = "korosensei")]
 pub use korosensei::Suspender;
-
 #[cfg(feature = "korosensei")]
 mod korosensei {
     use corosensei::Yielder;

@@ -63,6 +63,38 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
     pub fn add_listener(&mut self, listener: impl Listener<Yield, Return> + 'c) {
         self.add_raw_listener(Box::leak(Box::new(listener)));
     }
+
+    /// Queries the amount of remaining stack as interpreted by this coroutine.
+    ///
+    /// This function will return the amount of stack space left which will be used
+    /// to determine whether a stack switch should be made or not.
+    ///
+    /// # Safety
+    ///
+    /// This can only be done safely in coroutine.
+    pub unsafe fn remaining_stack(&self) -> usize {
+        let current_ptr = psm::stack_pointer() as usize;
+        current_ptr - self.stack_bottom.get()
+    }
+
+    /// Grows the call stack if necessary.
+    ///
+    /// This function is intended to be called at manually instrumented points in a program where
+    /// recursion is known to happen quite a bit. This function will check to see if we're within
+    /// `32 * 1024` bytes of the end of the stack, and if so it will allocate a new stack of at least
+    /// `128 * 1024` bytes.
+    ///
+    /// The closure `f` is guaranteed to run on a stack with at least `32 * 1024` bytes, and it will be
+    /// run on the current stack if there's space available.
+    #[allow(clippy::inline_always, missing_docs)]
+    #[inline(always)]
+    pub fn maybe_grow<R, F: FnOnce() -> R>(callback: F) -> std::io::Result<R> {
+        Self::maybe_grow_with(
+            32 * 1024,
+            crate::common::constants::DEFAULT_STACK_SIZE,
+            callback,
+        )
+    }
 }
 
 impl<Yield, Return> Coroutine<'_, (), Yield, Return>
