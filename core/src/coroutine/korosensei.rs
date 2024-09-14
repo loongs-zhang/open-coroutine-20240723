@@ -3,7 +3,7 @@ use crate::common::constants::CoroutineState;
 use crate::coroutine::listener::Listener;
 use crate::coroutine::local::CoroutineLocal;
 use crate::coroutine::suspender::Suspender;
-use corosensei::stack::DefaultStack;
+use corosensei::stack::{DefaultStack, Stack};
 use corosensei::trap::TrapHandlerRegs;
 use corosensei::{CoroutineResult, ScopedCoroutine};
 use std::cell::Cell;
@@ -26,6 +26,8 @@ pub struct Coroutine<'c, Param, Yield, Return> {
     pub(crate) name: String,
     inner: ScopedCoroutine<'c, Param, Yield, Result<Return, &'static str>, DefaultStack>,
     pub(crate) state: Cell<CoroutineState<Yield, Return>>,
+    pub(crate) stack_size: usize,
+    pub(crate) stack_bottom: Cell<usize>,
     pub(crate) listeners: VecDeque<&'c dyn Listener<Yield, Return>>,
     pub(crate) local: CoroutineLocal<'c>,
 }
@@ -300,6 +302,36 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
     pub(crate) fn add_raw_listener(&mut self, listener: &'c dyn Listener<Yield, Return>) {
         self.listeners.push_back(listener);
     }
+
+    /// Grows the call stack if necessary.
+    ///
+    /// This function is intended to be called at manually instrumented points in a program where
+    /// recursion is known to happen quite a bit. This function will check to see if we're within
+    /// `red_zone` bytes of the end of the stack, and if so it will allocate a new stack of at least
+    /// `stack_size` bytes.
+    ///
+    /// The closure `f` is guaranteed to run on a stack with at least `red_zone` bytes, and it will be
+    /// run on the current stack if there's space available.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    pub fn maybe_grow_with<R, F: FnOnce() -> R>(
+        red_zone: usize,
+        stack_size: usize,
+        callback: F,
+    ) -> std::io::Result<R> {
+        // if we can't guess the remaining stack (unsupported on some platforms) we immediately grow
+        // the stack and then cache the new stack size (which we do know now because we allocated it.
+        if let Some(co) = Self::current() {
+            if unsafe { co.remaining_stack() } >= red_zone {
+                return Ok(callback());
+            }
+            return DefaultStack::new(stack_size).map(|stack| {
+                co.stack_bottom.set(stack.limit().get());
+                corosensei::on_stack(stack, callback)
+            });
+        }
+        DefaultStack::new(stack_size).map(|stack| corosensei::on_stack(stack, callback))
+    }
 }
 
 impl<Param, Yield, Return> Drop for Coroutine<'_, Param, Yield, Return> {
@@ -326,6 +358,7 @@ where
     {
         let stack_size = stack_size.max(crate::common::page_size());
         let stack = DefaultStack::new(stack_size)?;
+        let stack_bottom = Cell::new(stack.limit().get());
         let co_name = name.clone().leak();
         let inner = ScopedCoroutine::with_stack(stack, move |y, p| {
             catch!(
@@ -344,6 +377,8 @@ where
         let mut co = Coroutine {
             name,
             inner,
+            stack_size,
+            stack_bottom,
             state: Cell::new(CoroutineState::Ready),
             listeners: VecDeque::default(),
             local: CoroutineLocal::default(),

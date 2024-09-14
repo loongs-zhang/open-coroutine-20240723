@@ -69,6 +69,28 @@ fn coroutine_delay() -> std::io::Result<()> {
     Ok(())
 }
 
+#[cfg(not(windows))]
+#[test]
+fn coroutine_stack_growth() -> std::io::Result<()> {
+    let mut coroutine = co!(|_: &Suspender<(), ()>, ()| {
+        fn recurse(i: u32, p: &mut [u8; 10000]) {
+            Coroutine::<(), (), ()>::maybe_grow(|| {
+                // Ensure the stack allocation isn't optimized away.
+                unsafe { std::ptr::read_volatile(&p) };
+                if i > 0 {
+                    recurse(i - 1, &mut [0; 10000]);
+                }
+            })
+            .expect("allocate stack failed")
+        }
+
+        // Use ~500KB of stack.
+        recurse(50, &mut [0; 10000]);
+    })?;
+    assert_eq!(coroutine.resume()?, CoroutineState::Complete(()));
+    Ok(())
+}
+
 #[test]
 fn coroutine_trap() -> std::io::Result<()> {
     let mut coroutine = co!(|_: &Suspender<'_, (), ()>, ()| {

@@ -1,70 +1,71 @@
 [package]
 name = "open-coroutine-core"
-version = "0.5.0"
-edition = "2021"
-authors = ["zhangzicheng@apache.org"]
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
 description = "The open-coroutine is a simple, efficient and generic coroutine library."
 repository = "https://github.com/acl-dev/open-coroutine"
 keywords = ["runtime", "coroutine", "hook", "preempt", "work-steal"]
 categories = ["concurrency", "asynchronous", "os", "network-programming", "wasm"]
-license = "Apache-2.0"
-readme = "/README.md"
+license = { workspace = true }
+readme = { workspace = true }
 
 [dependencies]
-cfg-if = "1.0.0"
-once_cell = "1.19"
-dashmap = "6.0"
-num_cpus = "1.16"
-rand = "0.8"
-st3 = "0.4"
-crossbeam-deque = "0.8"
-tracing = { version = "0.1", default-features = false, optional = true }
-tracing-subscriber = { version = "0.3", features = [
+cfg-if = { workspace = true }
+once_cell = { workspace = true }
+dashmap = { workspace = true }
+num_cpus = { workspace = true }
+rand = { workspace = true }
+st3 = { workspace = true }
+crossbeam-deque = { workspace = true }
+tracing = { workspace = true, default-features = false, optional = true }
+tracing-subscriber = { workspace = true, features = [
     "fmt",
     "local-time"
 ], default-features = false, optional = true }
-time = { version = "0.3", optional = true }
-corosensei = { version = "0.1", optional = true }
-uuid = { version = "1", features = [
+time = { workspace = true, optional = true }
+corosensei = { workspace = true, optional = true }
+uuid = { workspace = true, features = [
     "v4",
     "fast-rng",
 ], optional = true }
-derivative = { version = "2.2", optional = true }
-core_affinity = { version = "0.8", optional = true }
-crossbeam-utils = { version = "0.8", optional = true }
+derivative = { workspace = true, optional = true }
+core_affinity = { workspace = true, optional = true }
+crossbeam-utils = { workspace = true, optional = true }
+psm = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
-nix = { version = "0.29", features = ["signal"] }
-mio = { version = "1.0", features = [
+libc = { workspace = true }
+nix = { workspace = true, features = ["signal"] }
+mio = { workspace = true, features = [
     "net",
     "os-poll",
     "os-ext",
 ], default-features = false, optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-io-uring = { version = "0.6", optional = true }
+io-uring = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = [
+windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_System_Kernel",
     "Win32_System_Threading",
     "Win32_System_SystemInformation",
     "Win32_System_Diagnostics_Debug",
 ] }
-polling = { version = "2.8.0", optional = true }
+polling = { workspace = true, optional = true }
 
 [build-dependencies]
-cfg-if = "1.0.0"
+cfg-if = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.build-dependencies]
-cc = "1.1"
+cc = { workspace = true }
 
 [dev-dependencies]
-anyhow = "1.0"
-slab = "0.4"
-backtrace = "0.3"
+anyhow = { workspace = true }
+slab = { workspace = true }
+backtrace = { workspace = true }
 
 [features]
 # Print some help log.
