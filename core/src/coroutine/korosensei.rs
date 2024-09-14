@@ -6,7 +6,7 @@ use crate::coroutine::suspender::Suspender;
 use corosensei::stack::{DefaultStack, Stack};
 use corosensei::trap::TrapHandlerRegs;
 use corosensei::{CoroutineResult, ScopedCoroutine};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::io::{Error, ErrorKind};
@@ -27,7 +27,7 @@ pub struct Coroutine<'c, Param, Yield, Return> {
     inner: ScopedCoroutine<'c, Param, Yield, Result<Return, &'static str>, DefaultStack>,
     pub(crate) state: Cell<CoroutineState<Yield, Return>>,
     pub(crate) stack_size: usize,
-    pub(crate) stack_bottom: Cell<usize>,
+    pub(crate) stack_bottom: RefCell<VecDeque<usize>>,
     pub(crate) listeners: VecDeque<&'c dyn Listener<Yield, Return>>,
     pub(crate) local: CoroutineLocal<'c>,
 }
@@ -326,8 +326,10 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
                 return Ok(callback());
             }
             return DefaultStack::new(stack_size).map(|stack| {
-                co.stack_bottom.set(stack.limit().get());
-                corosensei::on_stack(stack, callback)
+                co.stack_bottom.borrow_mut().push_front(stack.limit().get());
+                let r = corosensei::on_stack(stack, callback);
+                _ = co.stack_bottom.borrow_mut().pop_front();
+                r
             });
         }
         DefaultStack::new(stack_size).map(|stack| corosensei::on_stack(stack, callback))
@@ -358,7 +360,7 @@ where
     {
         let stack_size = stack_size.max(crate::common::page_size());
         let stack = DefaultStack::new(stack_size)?;
-        let stack_bottom = Cell::new(stack.limit().get());
+        let stack_bottom = RefCell::new(VecDeque::from([stack.limit().get()]));
         let co_name = name.clone().leak();
         let inner = ScopedCoroutine::with_stack(stack, move |y, p| {
             catch!(

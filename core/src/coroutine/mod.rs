@@ -74,7 +74,7 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
     /// This can only be done safely in coroutine.
     pub unsafe fn remaining_stack(&self) -> usize {
         let current_ptr = psm::stack_pointer() as usize;
-        current_ptr - self.stack_bottom.get()
+        current_ptr - self.stack_bottom.borrow().front().copied().unwrap()
     }
 
     /// Grows the call stack if necessary.
@@ -90,7 +90,7 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
     #[inline(always)]
     pub fn maybe_grow<R, F: FnOnce() -> R>(callback: F) -> std::io::Result<R> {
         Self::maybe_grow_with(
-            32 * 1024,
+            16 * 1024 + crate::common::page_size(),
             crate::common::constants::DEFAULT_STACK_SIZE,
             callback,
         )
