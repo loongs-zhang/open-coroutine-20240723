@@ -11,7 +11,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 /// 做C兼容时会用到
-pub type UserFunc = extern "C" fn(*const Suspender<(), ()>, usize) -> usize;
+pub type UserFunc = extern "C" fn(usize) -> usize;
 
 cfg_if::cfg_if! {
     if #[cfg(all(target_os = "linux", feature = "io_uring"))] {

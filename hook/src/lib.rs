@@ -50,7 +50,8 @@
 use open_coroutine_core::co_pool::task::UserTaskFunc;
 use open_coroutine_core::net::config::Config;
 use open_coroutine_core::net::{EventLoops, UserFunc};
-use std::ffi::{c_int, c_uint};
+use open_coroutine_core::scheduler::SchedulableCoroutine;
+use std::ffi::{c_int, c_long, c_uint};
 use std::time::Duration;
 
 #[allow(
@@ -65,6 +66,7 @@ use std::time::Duration;
     clippy::unnecessary_cast,
     trivial_numeric_casts
 )]
+#[cfg(feature = "hook")]
 pub mod syscall;
 
 /// Start the framework.
@@ -92,57 +94,26 @@ pub extern "C" fn task_crate(f: UserTaskFunc, param: usize) -> c_int {
     -1
 }
 
-///创建协程
+///如果当前协程栈不够，切换到新栈上执行
 #[no_mangle]
-pub extern "C" fn coroutine_crate(f: UserFunc, param: usize, stack_size: usize) -> c_int {
-    let stack_size = if stack_size > 0 {
-        Some(stack_size)
+pub extern "C" fn maybe_grow_stack(
+    red_zone: usize,
+    stack_size: usize,
+    f: UserFunc,
+    param: usize,
+) -> c_long {
+    let red_zone = if red_zone > 0 {
+        red_zone
     } else {
-        None
+        open_coroutine_core::common::default_red_zone()
     };
-    if EventLoops::submit_co(
-        move |suspender, ()| Some(f(std::ptr::from_ref(suspender), param)),
-        stack_size,
-    )
-    .is_ok()
-    {
-        return 0;
+    let stack_size = if stack_size > 0 {
+        stack_size
+    } else {
+        open_coroutine_core::common::constants::DEFAULT_STACK_SIZE
+    };
+    if let Ok(r) = SchedulableCoroutine::maybe_grow_with(red_zone, stack_size, || f(param)) {
+        return c_long::try_from(r).expect("overflow");
     }
     -1
-}
-
-#[cfg(test)]
-#[ignore]
-#[test]
-fn deps() {
-    // need to add file_name env when run this test
-    let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("env not found"));
-    let deps = out_dir
-        .parent()
-        .expect("can not find deps dir")
-        .parent()
-        .expect("can not find deps dir")
-        .parent()
-        .expect("can not find deps dir")
-        .join("deps");
-    for entry in std::fs::read_dir(deps.clone())
-        .expect("Failed to read deps")
-        .flatten()
-    {
-        let file_name = entry.file_name().to_string_lossy().to_string();
-        if !file_name.contains("open_coroutine_hook") {
-            continue;
-        }
-        if cfg!(target_os = "linux") && file_name.ends_with(".so") {
-            println!("{file_name}");
-        } else if cfg!(target_os = "macos") && file_name.ends_with(".dylib") {
-            println!("{file_name}");
-        } else if cfg!(windows) {
-            if file_name.ends_with(".dll") {
-                println!("dll {file_name}");
-            } else if file_name.ends_with(".lib") {
-                println!("lib {file_name}");
-            }
-        }
-    }
 }

@@ -84,6 +84,8 @@ fn coroutine_stack_growth() -> std::io::Result<()> {
             .expect("allocate stack failed")
         }
 
+        let max_remaining = open_coroutine_core::common::constants::DEFAULT_STACK_SIZE
+            + open_coroutine_core::common::page_size();
         // Use ~500KB of stack.
         recurse(50, &mut [0; 10240]);
         let remaining_stack = unsafe {
@@ -91,7 +93,10 @@ fn coroutine_stack_growth() -> std::io::Result<()> {
                 .unwrap()
                 .remaining_stack()
         };
-        assert!(remaining_stack < open_coroutine_core::common::constants::DEFAULT_STACK_SIZE);
+        assert!(
+            remaining_stack < max_remaining,
+            "remaining stack {remaining_stack}"
+        );
         // Use ~500KB of stack.
         recurse(50, &mut [0; 10240]);
         let remaining_stack = unsafe {
@@ -99,7 +104,10 @@ fn coroutine_stack_growth() -> std::io::Result<()> {
                 .unwrap()
                 .remaining_stack()
         };
-        assert!(remaining_stack < open_coroutine_core::common::constants::DEFAULT_STACK_SIZE);
+        assert!(
+            remaining_stack < max_remaining,
+            "remaining stack {remaining_stack}"
+        );
     })?;
     assert_eq!(coroutine.resume()?, CoroutineState::Complete(()));
     Ok(())

@@ -133,6 +133,17 @@ pub fn page_size() -> usize {
     ret
 }
 
+/// Recommended read zone size for coroutines.
+pub fn default_red_zone() -> usize {
+    static DEFAULT_RED_ZONE: AtomicUsize = AtomicUsize::new(0);
+    let mut ret = DEFAULT_RED_ZONE.load(Ordering::Relaxed);
+    if ret == 0 {
+        ret = 16 * 1024 + page_size();
+        DEFAULT_RED_ZONE.store(ret, Ordering::Relaxed);
+    }
+    ret
+}
+
 #[allow(missing_docs)]
 #[repr(C)]
 #[derive(Debug, Default)]

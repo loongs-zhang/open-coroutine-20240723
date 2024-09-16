@@ -90,7 +90,7 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
     #[inline(always)]
     pub fn maybe_grow<R, F: FnOnce() -> R>(callback: F) -> std::io::Result<R> {
         Self::maybe_grow_with(
-            16 * 1024 + crate::common::page_size(),
+            crate::common::default_red_zone(),
             crate::common::constants::DEFAULT_STACK_SIZE,
             callback,
         )

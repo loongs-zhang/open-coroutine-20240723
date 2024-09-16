@@ -52,9 +52,8 @@ pub use open_coroutine_macros::*;
 
 use open_coroutine_core::co_pool::task::UserTaskFunc;
 use open_coroutine_core::common::constants::SLICE;
-use open_coroutine_core::coroutine::suspender::Suspender;
 use open_coroutine_core::net::UserFunc;
-use std::ffi::{c_int, c_uint, c_void};
+use std::ffi::{c_int, c_long, c_uint, c_void};
 use std::io::{Error, ErrorKind};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
@@ -66,7 +65,7 @@ extern "C" {
 
     fn task_crate(f: UserTaskFunc, param: usize) -> c_int;
 
-    fn coroutine_crate(f: UserFunc, param: usize, stack_size: usize) -> c_int;
+    fn maybe_grow_stack(red_zone: usize, stack_size: usize, f: UserFunc, param: usize) -> c_long;
 }
 
 /// Init the open-coroutine.
@@ -96,14 +95,8 @@ macro_rules! task {
 }
 
 /// Create a task.
-pub fn task<F, P: 'static, R: 'static>(f: F, param: P) -> c_int
-where
-    F: FnOnce(P) -> R + Copy,
-{
-    extern "C" fn co_main<F, P: 'static, R: 'static>(input: usize) -> usize
-    where
-        F: FnOnce(P) -> R + Copy,
-    {
+pub fn task<P: 'static, R: 'static, F: FnOnce(P) -> R>(f: F, param: P) -> c_int {
+    extern "C" fn task_main<P: 'static, R: 'static, F: FnOnce(P) -> R>(input: usize) -> usize {
         unsafe {
             let ptr = &mut *((input as *mut c_void).cast::<(F, P)>());
             let data = std::ptr::read_unaligned(ptr);
@@ -114,49 +107,62 @@ where
     let inner = Box::leak(Box::new((f, param)));
     unsafe {
         task_crate(
-            co_main::<F, P, R>,
+            task_main::<P, R, F>,
             std::ptr::from_mut::<(F, P)>(inner).cast::<c_void>() as usize,
         )
     }
 }
 
-/// Create a coroutine.
+/// Grows the call stack if necessary.
 #[macro_export]
-macro_rules! co {
-    ( $f: expr , $param:expr $(,)? ) => {{
-        $crate::co($f, $param, 128 * 1024)
-    }};
-    ( $f: expr , $param:expr ,$stack_size: expr $(,)?) => {{
-        $crate::co($f, $param, $stack_size)
-    }};
+macro_rules! maybe_grow {
+    ($red_zone:expr, $stack_size:expr, $f:expr $(,)?) => {
+        $crate::maybe_grow($red_zone, $stack_size, $f)
+    };
+    ($stack_size:literal, $f:expr $(,)?) => {
+        $crate::maybe_grow(
+            open_coroutine_core::common::default_red_zone(),
+            $stack_size,
+            $f,
+        )
+    };
+    ($f:expr $(,)?) => {
+        $crate::maybe_grow(
+            open_coroutine_core::common::default_red_zone(),
+            open_coroutine_core::common::constants::DEFAULT_STACK_SIZE,
+            $f,
+        )
+    };
 }
 
 /// Create a coroutine.
-pub fn co<F, P: 'static, R: 'static>(f: F, param: P, stack_size: usize) -> c_int
-where
-    F: FnOnce(*const Suspender<(), ()>, P) -> R + Copy,
-{
-    extern "C" fn co_main<F, P: 'static, R: 'static>(
-        suspender: *const Suspender<(), ()>,
-        input: usize,
-    ) -> usize
-    where
-        F: FnOnce(*const Suspender<(), ()>, P) -> R + Copy,
-    {
+pub fn maybe_grow<R: 'static, F: FnOnce() -> R>(
+    red_zone: usize,
+    stack_size: usize,
+    f: F,
+) -> std::io::Result<R> {
+    extern "C" fn execute_on_stack<R: 'static, F: FnOnce() -> R>(input: usize) -> usize {
         unsafe {
-            let ptr = &mut *((input as *mut c_void).cast::<(F, P)>());
+            let ptr = &mut *((input as *mut c_void).cast::<F>());
             let data = std::ptr::read_unaligned(ptr);
-            let result: &'static mut R = Box::leak(Box::new((data.0)(suspender, data.1)));
+            let result: &'static mut R = Box::leak(Box::new(data()));
             std::ptr::from_mut::<R>(result).cast::<c_void>() as usize
         }
     }
-    let inner = Box::leak(Box::new((f, param)));
+    let inner = Box::leak(Box::new(f));
     unsafe {
-        coroutine_crate(
-            co_main::<F, P, R>,
-            std::ptr::from_mut::<(F, P)>(inner).cast::<c_void>() as usize,
+        let ptr = maybe_grow_stack(
+            red_zone,
             stack_size,
-        )
+            execute_on_stack::<R, F>,
+            std::ptr::from_mut::<F>(inner).cast::<c_void>() as usize,
+        );
+        if ptr < 0 {
+            return Err(Error::new(ErrorKind::InvalidInput, "grow stack failed"));
+        }
+        Ok(*Box::from_raw(
+            usize::try_from(ptr).expect("overflow") as *mut R
+        ))
     }
 }
 
@@ -230,6 +236,28 @@ mod tests {
     #[test]
     fn test_link() {
         init(Config::single());
+        #[cfg(not(windows))]
+        {
+            _ = task!(
+                move |_| {
+                    fn recurse(i: u32, p: &mut [u8; 10240]) {
+                        maybe_grow!(|| {
+                            // Ensure the stack allocation isn't optimized away.
+                            unsafe { _ = std::ptr::read_volatile(&p) };
+                            if i > 0 {
+                                recurse(i - 1, &mut [0; 10240]);
+                            }
+                        })
+                        .expect("allocate stack failed")
+                    }
+                    // Use ~500KB of stack.
+                    recurse(50, &mut [0; 10240]);
+                    // Use ~500KB of stack.
+                    recurse(50, &mut [0; 10240]);
+                },
+                (),
+            );
+        }
         shutdown();
     }
 }
