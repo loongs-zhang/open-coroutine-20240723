@@ -2,6 +2,7 @@ use crate::coroutine::suspender::Suspender;
 use crate::info;
 use crate::net::config::Config;
 use crate::net::event_loop::EventLoop;
+use crate::net::join::JoinHandle;
 use once_cell::sync::OnceCell;
 use std::collections::VecDeque;
 use std::ffi::c_int;
@@ -26,11 +27,15 @@ mod selector;
 #[cfg(all(target_os = "linux", feature = "io_uring"))]
 mod operator;
 
-mod event_loop;
+#[allow(missing_docs)]
+pub mod event_loop;
 
 /// Configuration for `EventLoops`.
 #[allow(missing_docs)]
 pub mod config;
+
+/// Task join abstraction and impl.
+pub mod join;
 
 static INSTANCE: OnceCell<EventLoops> = OnceCell::new();
 
@@ -126,8 +131,12 @@ impl EventLoops {
         name: Option<String>,
         func: impl FnOnce(Option<usize>) -> Option<usize> + 'static,
         param: Option<usize>,
-    ) -> std::io::Result<()> {
-        Self::round_robin().submit_task(name, func, param)
+    ) -> JoinHandle {
+        let event_loop = Self::round_robin();
+        event_loop.submit_task(name, func, param).map_or_else(
+            |_| JoinHandle::err(event_loop),
+            |n| JoinHandle::new(event_loop, n.as_str()),
+        )
     }
 
     /// Submit a new coroutine to event-loop.

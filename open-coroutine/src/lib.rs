@@ -47,15 +47,17 @@
 )]
 //! see `https://github.com/acl-dev/open-coroutine`
 
-pub use open_coroutine_core::net::config::Config;
-pub use open_coroutine_macros::*;
-
 use open_coroutine_core::co_pool::task::UserTaskFunc;
 use open_coroutine_core::common::constants::SLICE;
+pub use open_coroutine_core::net::config::Config;
 use open_coroutine_core::net::UserFunc;
+pub use open_coroutine_macros::*;
+use std::cmp::Ordering;
 use std::ffi::{c_int, c_long, c_uint, c_void};
 use std::io::{Error, ErrorKind};
+use std::marker::PhantomData;
 use std::net::{TcpStream, ToSocketAddrs};
+use std::ops::Deref;
 use std::time::Duration;
 
 extern "C" {
@@ -63,9 +65,19 @@ extern "C" {
 
     fn open_coroutine_stop(secs: c_uint) -> c_int;
 
-    fn task_crate(f: UserTaskFunc, param: usize) -> c_int;
-
     fn maybe_grow_stack(red_zone: usize, stack_size: usize, f: UserFunc, param: usize) -> c_long;
+}
+
+#[allow(improper_ctypes)]
+extern "C" {
+    fn task_crate(f: UserTaskFunc, param: usize) -> open_coroutine_core::net::join::JoinHandle;
+
+    fn task_join(handle: &open_coroutine_core::net::join::JoinHandle) -> libc::c_long;
+
+    fn task_timeout_join(
+        handle: &open_coroutine_core::net::join::JoinHandle,
+        ns_time: u64,
+    ) -> libc::c_long;
 }
 
 /// Init the open-coroutine.
@@ -95,7 +107,7 @@ macro_rules! task {
 }
 
 /// Create a task.
-pub fn task<P: 'static, R: 'static, F: FnOnce(P) -> R>(f: F, param: P) -> c_int {
+pub fn task<P: 'static, R: 'static, F: FnOnce(P) -> R>(f: F, param: P) -> JoinHandle<R> {
     extern "C" fn task_main<P: 'static, R: 'static, F: FnOnce(P) -> R>(input: usize) -> usize {
         unsafe {
             let ptr = &mut *((input as *mut c_void).cast::<(F, P)>());
@@ -110,6 +122,58 @@ pub fn task<P: 'static, R: 'static, F: FnOnce(P) -> R>(f: F, param: P) -> c_int 
             task_main::<P, R, F>,
             std::ptr::from_mut::<(F, P)>(inner).cast::<c_void>() as usize,
         )
+        .into()
+    }
+}
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[derive(Debug)]
+pub struct JoinHandle<R>(open_coroutine_core::net::join::JoinHandle, PhantomData<R>);
+
+#[allow(missing_docs)]
+impl<R> JoinHandle<R> {
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn timeout_join(&self, dur: Duration) -> std::io::Result<Option<R>> {
+        unsafe {
+            let ptr = task_timeout_join(self, dur.as_nanos() as u64);
+            match ptr.cmp(&0) {
+                Ordering::Less => Err(Error::new(ErrorKind::Other, "timeout join failed")),
+                Ordering::Equal => Ok(None),
+                Ordering::Greater => Ok(Some(std::ptr::read_unaligned(ptr as *mut R))),
+            }
+        }
+    }
+
+    pub fn join(self) -> std::io::Result<Option<R>> {
+        unsafe {
+            let ptr = task_join(&self);
+            match ptr.cmp(&0) {
+                Ordering::Less => Err(Error::new(ErrorKind::Other, "join failed")),
+                Ordering::Equal => Ok(None),
+                Ordering::Greater => Ok(Some(std::ptr::read_unaligned(ptr as *mut R))),
+            }
+        }
+    }
+}
+
+impl<R> From<open_coroutine_core::net::join::JoinHandle> for JoinHandle<R> {
+    fn from(val: open_coroutine_core::net::join::JoinHandle) -> Self {
+        Self(val, PhantomData)
+    }
+}
+
+impl<R> From<JoinHandle<R>> for open_coroutine_core::net::join::JoinHandle {
+    fn from(val: JoinHandle<R>) -> Self {
+        val.0
+    }
+}
+
+impl<R> Deref for JoinHandle<R> {
+    type Target = open_coroutine_core::net::join::JoinHandle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -234,11 +298,11 @@ mod tests {
     use open_coroutine_core::net::config::Config;
 
     #[test]
-    fn test_link() {
+    fn test() {
         init(Config::single());
         #[cfg(not(windows))]
         {
-            _ = task!(
+            let join = task!(
                 move |_| {
                     fn recurse(i: u32, p: &mut [u8; 10240]) {
                         maybe_grow!(|| {
@@ -257,6 +321,7 @@ mod tests {
                 },
                 (),
             );
+            assert_eq!(Some(()), join.join().expect("join failed"));
         }
         shutdown();
     }

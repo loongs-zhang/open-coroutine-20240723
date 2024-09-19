@@ -67,4 +67,5 @@ fn co_pool_stop() -> std::io::Result<()> {
         },
         None,
     )
+    .map(|_| ())
 }
