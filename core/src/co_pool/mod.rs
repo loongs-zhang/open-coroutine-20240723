@@ -5,7 +5,7 @@ use crate::common::constants::PoolState;
 use crate::common::work_steal::{LocalQueue, WorkStealQueue};
 use crate::common::{get_timeout_time, now, CondvarBlocker};
 use crate::coroutine::suspender::Suspender;
-use crate::scheduler::Scheduler;
+use crate::scheduler::{SchedulableCoroutine, Scheduler};
 use crate::{impl_current_for, impl_display_by_debug, impl_for_named, trace};
 use dashmap::DashMap;
 use std::cell::Cell;
@@ -210,7 +210,7 @@ impl<'p> CoroutinePool<'p> {
         name: Option<String>,
         func: impl FnOnce(Option<usize>) -> Option<usize> + 'p,
         param: Option<usize>,
-    ) -> std::io::Result<()> {
+    ) -> std::io::Result<String> {
         match self.state() {
             PoolState::Running => {}
             PoolState::Stopping | PoolState::Stopped => {
@@ -222,7 +222,7 @@ impl<'p> CoroutinePool<'p> {
         }
         let name = name.unwrap_or(format!("{}@{}", self.name(), uuid::Uuid::new_v4()));
         self.submit_raw_task(Task::new(name.clone(), func, param));
-        Ok(())
+        Ok(name)
     }
 
     /// Submit new task to this pool.
@@ -232,6 +232,64 @@ impl<'p> CoroutinePool<'p> {
     pub(crate) fn submit_raw_task(&self, task: Task<'p>) {
         self.task_queue.push_back(task);
         self.blocker.notify();
+    }
+
+    /// Attempt to obtain task results with the given `task_name`.
+    pub fn try_get_task_result(&self, task_name: &str) -> Option<Result<Option<usize>, &'p str>> {
+        self.results.remove(task_name).map(|(_, r)| r)
+    }
+
+    /// Use the given `task_name` to obtain task results, and if no results are found,
+    /// block the current thread for `wait_time`.
+    ///
+    /// # Errors
+    /// if timeout
+    pub fn wait_task_result(
+        &self,
+        task_name: &str,
+        wait_time: Duration,
+    ) -> std::io::Result<Option<Result<Option<usize>, &str>>> {
+        let key = Box::leak(Box::from(task_name));
+        if let Some(r) = self.try_get_task_result(key) {
+            self.notify(key);
+            drop(self.waits.remove(key));
+            return Ok(Some(r));
+        }
+        if SchedulableCoroutine::current().is_some() {
+            let timeout_time = get_timeout_time(wait_time);
+            loop {
+                _ = self.try_run();
+                if let Some(r) = self.try_get_task_result(key) {
+                    return Ok(Some(r));
+                }
+                if timeout_time.saturating_sub(now()) == 0 {
+                    return Err(Error::new(ErrorKind::TimedOut, "wait timeout"));
+                }
+            }
+        }
+        let arc = if let Some(arc) = self.waits.get(key) {
+            arc.clone()
+        } else {
+            let arc = Arc::new((Mutex::new(true), Condvar::new()));
+            assert!(self.waits.insert(key, arc.clone()).is_none());
+            arc
+        };
+        let (lock, cvar) = &*arc;
+        drop(
+            cvar.wait_timeout_while(
+                lock.lock()
+                    .map_err(|e| Error::new(ErrorKind::Other, format!("{e}")))?,
+                wait_time,
+                |&mut pending| pending,
+            )
+            .map_err(|e| Error::new(ErrorKind::Other, format!("{e}")))?,
+        );
+        if let Some(r) = self.try_get_task_result(key) {
+            self.notify(key);
+            assert!(self.waits.remove(key).is_some());
+            return Ok(Some(r));
+        }
+        Err(Error::new(ErrorKind::TimedOut, "wait timeout"))
     }
 
     fn can_recycle(&self) -> bool {
@@ -318,13 +376,17 @@ impl<'p> CoroutinePool<'p> {
                 self.results.insert(task_name.clone(), result).is_none(),
                 "The previous result was not retrieved in a timely manner"
             );
-            if let Some(arc) = self.waits.get(&*task_name) {
-                let (lock, cvar) = &**arc;
-                let mut pending = lock.lock().unwrap();
-                *pending = false;
-                cvar.notify_one();
-            }
+            self.notify(&task_name);
         })
+    }
+
+    fn notify(&self, task_name: &str) {
+        if let Some(arc) = self.waits.get(task_name) {
+            let (lock, cvar) = &**arc;
+            let mut pending = lock.lock().expect("notify task failed");
+            *pending = false;
+            cvar.notify_one();
+        }
     }
 
     /// Schedule the tasks.
@@ -361,7 +423,7 @@ impl<'p> CoroutinePool<'p> {
     pub fn try_timeout_schedule_task(&mut self, timeout_time: u64) -> std::io::Result<u64> {
         match self.state() {
             PoolState::Running | PoolState::Stopping => {
-                _ = self.try_grow();
+                drop(self.try_grow());
             }
             PoolState::Stopped => {
                 return Err(Error::new(

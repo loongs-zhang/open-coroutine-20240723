@@ -26,7 +26,7 @@ cfg_if::cfg_if! {
 
 #[repr(C)]
 #[derive(Debug)]
-pub(super) struct EventLoop<'e> {
+pub(crate) struct EventLoop<'e> {
     //状态
     state: AtomicCell<PoolState>,
     stop: Arc<(Mutex<bool>, Condvar)>,
@@ -448,8 +448,8 @@ mod tests {
     fn test_simple() -> std::io::Result<()> {
         let mut event_loop = EventLoop::default();
         event_loop.set_max_size(1);
-        event_loop.submit_task(None, |_| panic!("test panic, just ignore it"), None)?;
-        event_loop.submit_task(
+        _ = event_loop.submit_task(None, |_| panic!("test panic, just ignore it"), None)?;
+        _ = event_loop.submit_task(
             None,
             |_| {
                 println!("2");
@@ -465,8 +465,8 @@ mod tests {
     fn test_simple_auto() -> std::io::Result<()> {
         let event_loop = EventLoop::default().start()?;
         event_loop.set_max_size(1);
-        event_loop.submit_task(None, |_| panic!("test panic, just ignore it"), None)?;
-        event_loop.submit_task(
+        _ = event_loop.submit_task(None, |_| panic!("test panic, just ignore it"), None)?;
+        _ = event_loop.submit_task(
             None,
             |_| {
                 println!("2");

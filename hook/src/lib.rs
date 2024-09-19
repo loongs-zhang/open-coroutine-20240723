@@ -49,9 +49,10 @@
 
 use open_coroutine_core::co_pool::task::UserTaskFunc;
 use open_coroutine_core::net::config::Config;
+use open_coroutine_core::net::join::JoinHandle;
 use open_coroutine_core::net::{EventLoops, UserFunc};
 use open_coroutine_core::scheduler::SchedulableCoroutine;
-use std::ffi::{c_int, c_long, c_uint};
+use std::ffi::{c_int, c_long, c_uint, c_void};
 use std::time::Duration;
 
 #[allow(
@@ -87,11 +88,38 @@ pub extern "C" fn open_coroutine_stop(secs: c_uint) -> c_int {
 
 ///创建任务
 #[no_mangle]
-pub extern "C" fn task_crate(f: UserTaskFunc, param: usize) -> c_int {
-    if EventLoops::submit_task(None, move |p| Some(f(p.unwrap_or(0))), Some(param)).is_ok() {
-        return 0;
+pub extern "C" fn task_crate(f: UserTaskFunc, param: usize) -> JoinHandle {
+    EventLoops::submit_task(None, move |p| Some(f(p.unwrap_or(0))), Some(param))
+}
+
+///等待任务完成
+#[no_mangle]
+pub extern "C" fn task_join(handle: &JoinHandle) -> c_long {
+    match handle.join() {
+        Ok(ptr) => match ptr {
+            Ok(ptr) => match ptr {
+                Some(ptr) => ptr as *mut c_void as c_long,
+                None => 0,
+            },
+            Err(_) => -1,
+        },
+        Err(_) => -1,
     }
-    -1
+}
+
+///等待任务完成
+#[no_mangle]
+pub extern "C" fn task_timeout_join(handle: &JoinHandle, ns_time: u64) -> c_long {
+    match handle.timeout_join(Duration::from_nanos(ns_time)) {
+        Ok(ptr) => match ptr {
+            Ok(ptr) => match ptr {
+                Some(ptr) => ptr as *mut c_void as c_long,
+                None => 0,
+            },
+            Err(_) => -1,
+        },
+        Err(_) => -1,
+    }
 }
 
 ///如果当前协程栈不够，切换到新栈上执行
