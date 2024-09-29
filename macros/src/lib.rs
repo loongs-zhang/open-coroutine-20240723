@@ -53,16 +53,17 @@ extern crate quote;
 extern crate syn;
 
 use proc_macro::TokenStream;
-use syn::{ItemFn, LitInt};
+use syn::{ItemFn, LitBool, LitInt};
 
 /// use this macro like `#[open_coroutine::main(event_loop_size = 2, max_size = 2, keep_alive_time = 0)]`.
 #[proc_macro_attribute]
 pub fn main(args: TokenStream, func: TokenStream) -> TokenStream {
-    let mut event_loop_size: usize = usize::MAX;
-    let mut stack_size: usize = usize::MAX;
-    let mut min_size: usize = usize::MAX;
-    let mut max_size: usize = usize::MAX;
-    let mut keep_alive_time: u64 = u64::MAX;
+    let mut event_loop_size = usize::MAX;
+    let mut stack_size = usize::MAX;
+    let mut min_size = usize::MAX;
+    let mut max_size = usize::MAX;
+    let mut keep_alive_time = u64::MAX;
+    let mut hook = true;
     if !args.is_empty() {
         let tea_parser = syn::meta::parser(|meta| {
             if meta.path.is_ident("event_loop_size") {
@@ -75,6 +76,8 @@ pub fn main(args: TokenStream, func: TokenStream) -> TokenStream {
                 max_size = meta.value()?.parse::<LitInt>()?.base10_parse()?;
             } else if meta.path.is_ident("keep_alive_time") {
                 keep_alive_time = meta.value()?.parse::<LitInt>()?.base10_parse()?;
+            } else if meta.path.is_ident("hook") {
+                hook = meta.value()?.parse::<LitBool>()?.value();
             }
             Ok(())
         });
@@ -109,6 +112,9 @@ pub fn main(args: TokenStream, func: TokenStream) -> TokenStream {
             }
             if #keep_alive_time != u64::MAX {
                 open_coroutine_config.set_keep_alive_time(#keep_alive_time);
+            }
+            if #hook != true {
+                open_coroutine_config.set_hook(#hook);
             }
             open_coroutine::init(open_coroutine_config);
             let _open_coroutine_result = #func_block;

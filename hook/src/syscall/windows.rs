@@ -18,15 +18,16 @@ macro_rules! impl_hook {
         });
         #[allow(non_snake_case)]
         extern "system" fn $syscall($($arg: $arg_type),*) -> $result {
-            open_coroutine_core::syscall::$syscall(
-                Some($field_name.get().unwrap_or_else(|| {
-                    panic!(
-                        "hook {} failed !",
-                        open_coroutine_core::common::constants::Syscall::$syscall
-                    )
-                })),
-                $($arg),*
-            );
+            let fn_ptr = $field_name.get().unwrap_or_else(|| {
+                panic!(
+                    "hook {} failed !",
+                    open_coroutine_core::common::constants::Syscall::$syscall
+                )
+            });
+            if $crate::hook() {
+                return open_coroutine_core::syscall::$syscall(Some(fn_ptr), $($arg),*);
+            }
+            (fn_ptr)($($arg),*)
         }
     }
 }

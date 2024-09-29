@@ -47,6 +47,7 @@
 )]
 //! see `https://github.com/acl-dev/open-coroutine`
 
+use once_cell::sync::OnceCell;
 use open_coroutine_core::co_pool::task::UserTaskFunc;
 use open_coroutine_core::net::config::Config;
 use open_coroutine_core::net::join::JoinHandle;
@@ -54,6 +55,12 @@ use open_coroutine_core::net::{EventLoops, UserFunc};
 use open_coroutine_core::scheduler::SchedulableCoroutine;
 use std::ffi::{c_int, c_long, c_uint, c_void};
 use std::time::Duration;
+
+static HOOK: OnceCell<bool> = OnceCell::new();
+
+pub(crate) fn hook() -> bool {
+    HOOK.get().map_or_else(|| false, |v| *v)
+}
 
 #[allow(
     dead_code,
@@ -67,13 +74,13 @@ use std::time::Duration;
     clippy::unnecessary_cast,
     trivial_numeric_casts
 )]
-#[cfg(feature = "hook")]
 pub mod syscall;
 
 /// Start the framework.
 #[no_mangle]
 pub extern "C" fn open_coroutine_init(config: Config) -> c_int {
     EventLoops::init(&config);
+    _ = HOOK.get_or_init(|| config.hook());
     0
 }
 

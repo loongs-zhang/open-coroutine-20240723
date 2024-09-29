@@ -1,8 +1,8 @@
 use crate::coroutine::suspender::Suspender;
-use crate::info;
 use crate::net::config::Config;
 use crate::net::event_loop::EventLoop;
 use crate::net::join::JoinHandle;
+use crate::{error, info};
 use once_cell::sync::OnceCell;
 use std::collections::VecDeque;
 use std::ffi::c_int;
@@ -230,6 +230,7 @@ impl EventLoops {
                 })
                 .map_err(|_| Error::new(ErrorKind::TimedOut, "wait failed !"))?;
             if result.1.timed_out() {
+                error!("open-coroutine stop timeout !");
                 return Err(Error::new(ErrorKind::TimedOut, "stop timeout !"));
             }
             #[cfg(all(unix, feature = "preemptive"))]
