@@ -8,12 +8,13 @@ pub struct Config {
     min_size: usize,
     max_size: usize,
     keep_alive_time: u64,
+    hook: bool,
 }
 
 impl Config {
     #[must_use]
     pub fn single() -> Self {
-        Self::new(1, DEFAULT_STACK_SIZE, 0, 65536, 0)
+        Self::new(1, DEFAULT_STACK_SIZE, 0, 65536, 0, true)
     }
 
     #[must_use]
@@ -23,6 +24,7 @@ impl Config {
         min_size: usize,
         max_size: usize,
         keep_alive_time: u64,
+        hook: bool,
     ) -> Self {
         Self {
             event_loop_size,
@@ -30,6 +32,7 @@ impl Config {
             min_size,
             max_size,
             keep_alive_time,
+            hook,
         }
     }
 
@@ -56,6 +59,11 @@ impl Config {
     #[must_use]
     pub fn keep_alive_time(&self) -> u64 {
         self.keep_alive_time
+    }
+
+    #[must_use]
+    pub fn hook(&self) -> bool {
+        self.hook
     }
 
     pub fn set_event_loop_size(&mut self, event_loop_size: usize) -> &mut Self {
@@ -92,10 +100,15 @@ impl Config {
         self.keep_alive_time = keep_alive_time;
         self
     }
+
+    pub fn set_hook(&mut self, hook: bool) -> &mut Self {
+        self.hook = hook;
+        self
+    }
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(cpu_count(), DEFAULT_STACK_SIZE, 0, 65536, 0)
+        Self::new(cpu_count(), DEFAULT_STACK_SIZE, 0, 65536, 0, true)
     }
 }

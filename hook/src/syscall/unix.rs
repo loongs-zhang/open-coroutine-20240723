@@ -19,10 +19,11 @@ macro_rules! impl_hook {
                 assert!(!ptr.is_null(), "system call \"{syscall}\" not found !");
                 std::mem::transmute(ptr)
             });
-            open_coroutine_core::syscall::$syscall(
-                Some(once_cell::sync::Lazy::force(&$field_name)),
-                $($arg, )*
-            )
+            let fn_ptr = once_cell::sync::Lazy::force(&$field_name);
+            if $crate::hook() {
+                return open_coroutine_core::syscall::$syscall(Some(fn_ptr), $($arg, )*);
+            }
+            (fn_ptr)($($arg),*)
         }
     }
 }

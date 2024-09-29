@@ -45,6 +45,3 @@ io_uring = ["open-coroutine-hook/io_uring", "open-coroutine-core/io_uring"]
 
 # Provide syscall implementation.
 syscall = ["open-coroutine-hook/syscall", "open-coroutine-core/syscall"]
-
-# Provide hook implementation.
-hook = ["open-coroutine-hook/hook"]

@@ -91,11 +91,7 @@ pub fn init(config: Config) {
 
 /// Shutdown the open-coroutine.
 pub fn shutdown() {
-    assert_eq!(
-        0,
-        unsafe { open_coroutine_stop(30) },
-        "open-coroutine shutdown failed !"
-    );
+    unsafe { _ = open_coroutine_stop(30) };
 }
 
 /// Create a task.
