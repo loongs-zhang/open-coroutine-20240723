@@ -6,7 +6,7 @@ use crate::{error, info};
 use std::fmt::Debug;
 use std::io::{Error, ErrorKind};
 
-impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return>
+impl<Param, Yield, Return> Coroutine<'_, Param, Yield, Return>
 where
     Yield: Debug + Copy + Eq,
     Return: Debug + Copy + Eq,

@@ -8,7 +8,7 @@ thread_local! {
     static TIMESTAMP: RefCell<VecDeque<u64>> = const { RefCell::new(VecDeque::new()) };
 }
 
-impl<'s, Param, Yield> Suspender<'s, Param, Yield> {
+impl<Param, Yield> Suspender<'_, Param, Yield> {
     /// Delay the execution of the coroutine with an arg after `Duration`.
     pub fn delay_with(&self, arg: Yield, delay: Duration) -> Param {
         self.until_with(arg, get_timeout_time(delay))

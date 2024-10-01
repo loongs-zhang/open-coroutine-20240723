@@ -132,7 +132,7 @@ impl Syscall {
 
 impl_display_by_debug!(Syscall);
 
-impl<'s> From<Syscall> for &'s str {
+impl From<Syscall> for &str {
     fn from(val: Syscall) -> Self {
         match val {
             #[cfg(windows)]

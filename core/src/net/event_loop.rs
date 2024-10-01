@@ -50,7 +50,7 @@ impl<'e> Deref for EventLoop<'e> {
     }
 }
 
-impl<'e> DerefMut for EventLoop<'e> {
+impl DerefMut for EventLoop<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.pool
     }

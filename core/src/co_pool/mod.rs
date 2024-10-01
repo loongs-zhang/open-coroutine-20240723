@@ -97,7 +97,7 @@ impl<'p> Deref for CoroutinePool<'p> {
     }
 }
 
-impl<'p> DerefMut for CoroutinePool<'p> {
+impl DerefMut for CoroutinePool<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.workers
     }

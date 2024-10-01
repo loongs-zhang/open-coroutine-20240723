@@ -1,6 +1,10 @@
 #![deny(
     // The following are allowed by default lints according to
     // https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
+    absolute_paths_not_starting_with_crate,
+    explicit_outlives_requirements,
+    macro_use_extern_crate,
+    redundant_lifetimes,
     anonymous_parameters,
     bare_trait_objects,
     // elided_lifetimes_in_paths, // allow anonymous lifetime
@@ -13,6 +17,9 @@
     unreachable_pub,
     // unsafe_code,
     unstable_features,
+    // unused_crate_dependencies,
+    unused_lifetimes,
+    unused_macro_rules,
     unused_extern_crates,
     unused_import_braces,
     unused_qualifications,
