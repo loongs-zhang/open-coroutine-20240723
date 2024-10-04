@@ -91,7 +91,6 @@ pub fn start_co_client<A: ToSocketAddrs>(addr: A) {
     );
 }
 
-#[test]
 #[open_coroutine::main(event_loop_size = 1, max_size = 1)]
 fn main() -> std::io::Result<()> {
     let addr = "127.0.0.1:8899";
@@ -122,4 +121,9 @@ fn main() -> std::io::Result<()> {
     } else {
         Ok(())
     }
+}
+
+#[test]
+fn socket_co_client() -> std::io::Result<()> {
+    main()
 }

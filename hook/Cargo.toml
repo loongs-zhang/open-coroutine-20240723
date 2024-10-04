@@ -1,21 +1,21 @@
 [package]
 name = "open-coroutine-hook"
-version = { workspace = true }
-edition = { workspace = true }
-authors = { workspace = true }
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "The syscall hook for open-coroutine"
-repository = "https://github.com/acl-dev/open-coroutine/tree/dev/open-coroutine-hooks"
+repository.workspace = true
 keywords = ["open-coroutine", "hook", "syscall"]
 categories = ["os", "concurrency", "asynchronous"]
-license = { workspace = true }
-readme = { workspace = true }
+license.workspace = true
+readme.workspace = true
 
 [dependencies]
-once_cell = { workspace = true }
-open-coroutine-core = { workspace = true }
+once_cell.workspace = true
+open-coroutine-core.workspace = true
 
 [target.'cfg(unix)'.dependencies]
-libc = { workspace = true }
+libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, features = [
@@ -26,7 +26,7 @@ windows-sys = { workspace = true, features = [
     "Win32_System_LibraryLoader",
     "Win32_System_SystemServices"
 ] }
-minhook = { workspace = true }
+minhook.workspace = true
 
 [features]
 # Print some help log.

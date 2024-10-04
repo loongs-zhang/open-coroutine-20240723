@@ -1,17 +1,17 @@
 [package]
 name = "open-coroutine-macros"
-version = { workspace = true }
-edition = { workspace = true }
+version.workspace = true
+edition.workspace = true
 description = "The proc macros for open-coroutine"
-repository = "https://github.com/loongs-zhang/open-coroutine-20240423"
+repository.workspace = true
 keywords = ["open-coroutine", "macro"]
 categories = ["concurrency", "asynchronous", "os", "network-programming", "wasm"]
-license = { workspace = true }
-readme = { workspace = true }
+license.workspace = true
+readme.workspace = true
 
 [dependencies]
 syn = { workspace = true, features = ["full"] }
-quote = { workspace = true }
+quote.workspace = true
 
 [lib]
 proc-macro = true

@@ -1,20 +1,20 @@
 [package]
 name = "open-coroutine"
-version = { workspace = true }
-edition = { workspace = true }
+version.workspace = true
+edition.workspace = true
 authors = ["zhangzicheng@apache.org"]
 description = "The open-coroutine is a simple, efficient and generic stackful-coroutine library."
 repository = "https://github.com/acl-dev/open-coroutine"
 keywords = ["coroutine", "fiber", "stackful", "hook"]
 categories = ["data-structures", "concurrency", "asynchronous", "web-programming", "wasm"]
-license = { workspace = true }
-readme = { workspace = true }
+license.workspace = true
+readme.workspace = true
 
 [dependencies]
-libc = { workspace = true }
-open-coroutine-core = { workspace = true }
-open-coroutine-hook = { workspace = true }
-open-coroutine-macros = { workspace = true }
+libc.workspace = true
+open-coroutine-core.workspace = true
+open-coroutine-hook.workspace = true
+open-coroutine-macros.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, features = [

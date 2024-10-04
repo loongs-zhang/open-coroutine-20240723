@@ -25,9 +25,13 @@ fn sleep_test(millis: u64) {
     assert!(end - start >= millis, "Time consumption less than expected");
 }
 
-#[test]
 #[open_coroutine::main(event_loop_size = 1, max_size = 2)]
 fn main() {
     sleep_test(1);
     sleep_test(1000);
+}
+
+#[test]
+fn sleep_not_co() {
+    main();
 }

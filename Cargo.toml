@@ -16,9 +16,9 @@ license = "Apache-2.0"
 readme = "README.md"
 
 [workspace.dependencies]
-open-coroutine-core = { version = "0.5.0", path = "core"}
-open-coroutine-hook = { version = "0.5.0", path = "hook" }
-open-coroutine-macros = { version = "0.5.0", path = "macros" }
+open-coroutine-core.path = "core"
+open-coroutine-hook.path = "hook"
+open-coroutine-macros.path = "macros"
 
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }

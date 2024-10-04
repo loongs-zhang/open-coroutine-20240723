@@ -1,23 +1,23 @@
 [package]
 name = "open-coroutine-core"
-version = { workspace = true }
-edition = { workspace = true }
-authors = { workspace = true }
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "The open-coroutine is a simple, efficient and generic coroutine library."
-repository = "https://github.com/acl-dev/open-coroutine"
+repository.workspace = true
 keywords = ["runtime", "coroutine", "hook", "preempt", "work-steal"]
 categories = ["concurrency", "asynchronous", "os", "network-programming", "wasm"]
-license = { workspace = true }
-readme = { workspace = true }
+license.workspace = true
+readme.workspace = true
 
 [dependencies]
-cfg-if = { workspace = true }
-once_cell = { workspace = true }
-dashmap = { workspace = true }
-num_cpus = { workspace = true }
-rand = { workspace = true }
-st3 = { workspace = true }
-crossbeam-deque = { workspace = true }
+cfg-if.workspace = true
+once_cell.workspace = true
+dashmap.workspace = true
+num_cpus.workspace = true
+rand.workspace = true
+st3.workspace = true
+crossbeam-deque.workspace = true
 tracing = { workspace = true, default-features = false, optional = true }
 tracing-subscriber = { workspace = true, features = [
     "fmt",
@@ -32,10 +32,10 @@ uuid = { workspace = true, features = [
 derivative = { workspace = true, optional = true }
 core_affinity = { workspace = true, optional = true }
 crossbeam-utils = { workspace = true, optional = true }
-psm = { workspace = true }
+psm.workspace = true
 
 [target.'cfg(unix)'.dependencies]
-libc = { workspace = true }
+libc.workspace = true
 nix = { workspace = true, features = ["signal"] }
 mio = { workspace = true, features = [
     "net",
@@ -57,15 +57,15 @@ windows-sys = { workspace = true, features = [
 polling = { workspace = true, optional = true }
 
 [build-dependencies]
-cfg-if = { workspace = true }
+cfg-if.workspace = true
 
 [target.'cfg(target_os = "linux")'.build-dependencies]
-cc = { workspace = true }
+cc.workspace = true
 
 [dev-dependencies]
-anyhow = { workspace = true }
-slab = { workspace = true }
-backtrace = { workspace = true }
+anyhow.workspace = true
+slab.workspace = true
+backtrace.workspace = true
 
 [features]
 # Print some help log.

@@ -87,7 +87,6 @@ fn start_client<A: ToSocketAddrs>(addr: A) {
     eprintln!("Client Closed");
 }
 
-#[test]
 #[open_coroutine::main(event_loop_size = 1, max_size = 1)]
 fn main() -> std::io::Result<()> {
     let addr = "127.0.0.1:8888";
@@ -118,4 +117,9 @@ fn main() -> std::io::Result<()> {
     } else {
         Ok(())
     }
+}
+
+#[test]
+fn socket_not_co() -> std::io::Result<()> {
+    main()
 }
