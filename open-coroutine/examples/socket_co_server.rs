@@ -93,7 +93,7 @@ pub fn start_client<A: ToSocketAddrs>(addr: A) {
 }
 
 #[open_coroutine::main(event_loop_size = 1, max_size = 1)]
-fn main() -> std::io::Result<()> {
+pub fn main() -> std::io::Result<()> {
     let addr = "127.0.0.1:8889";
     let server_finished_pair = Arc::new((Mutex::new(true), Condvar::new()));
     let server_finished = Arc::clone(&server_finished_pair);
@@ -122,9 +122,4 @@ fn main() -> std::io::Result<()> {
     } else {
         Ok(())
     }
-}
-
-#[test]
-fn socket_co_server() -> std::io::Result<()> {
-    main()
 }

@@ -26,12 +26,7 @@ fn sleep_test(millis: u64) {
 }
 
 #[open_coroutine::main(event_loop_size = 1, max_size = 2)]
-fn main() {
+pub fn main() {
     sleep_test(1);
     sleep_test(1000);
-}
-
-#[test]
-fn sleep_not_co() {
-    main();
 }

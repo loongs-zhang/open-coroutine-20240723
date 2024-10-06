@@ -38,12 +38,7 @@ pub fn sleep_test_co(millis: u64) {
 }
 
 #[open_coroutine::main(event_loop_size = 1, max_size = 2)]
-fn main() {
+pub fn main() {
     sleep_test_co(1);
     sleep_test_co(1000);
-}
-
-#[test]
-fn sleep_co() {
-    main();
 }
