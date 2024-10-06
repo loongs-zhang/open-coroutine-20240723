@@ -1,4 +1,3 @@
-#![cfg(unix)]
 use open_coroutine::task;
 use std::io::{Error, ErrorKind, IoSlice, IoSliceMut, Read, Write};
 use std::net::{Shutdown, TcpListener, ToSocketAddrs};
@@ -128,6 +127,7 @@ fn main() -> std::io::Result<()> {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn socket_co() -> std::io::Result<()> {
     main()

@@ -1,4 +1,3 @@
-#[cfg(unix)]
 pub mod common;
 
 #[cfg(unix)]

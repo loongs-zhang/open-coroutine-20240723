@@ -1,4 +1,11 @@
+use dashmap::DashSet;
+use once_cell::sync::Lazy;
+use windows_sys::Win32::Networking::WinSock::SOCKET;
+
+pub use ioctlsocket::ioctlsocket;
+pub use socket::socket;
 pub use Sleep::Sleep;
+pub use WSASocketW::WSASocketW;
 
 macro_rules! impl_facade {
     ( $struct_name:ident, $trait_name: ident, $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
@@ -36,7 +43,6 @@ macro_rules! impl_facade {
     }
 }
 
-#[allow(unused_macros)]
 macro_rules! impl_raw {
     ( $struct_name: ident, $trait_name: ident, $($mod_name: ident)::*, $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
         #[repr(C)]
@@ -60,3 +66,49 @@ macro_rules! impl_raw {
 }
 
 mod Sleep;
+mod WSASocketW;
+mod ioctlsocket;
+mod socket;
+
+static NON_BLOCKING: Lazy<DashSet<SOCKET>> = Lazy::new(Default::default);
+
+pub extern "C" fn set_errno(errno: windows_sys::Win32::Foundation::WIN32_ERROR) {
+    unsafe { windows_sys::Win32::Foundation::SetLastError(errno) }
+}
+
+/// # Panics
+/// if set fails.
+pub extern "C" fn set_non_blocking(fd: SOCKET) {
+    assert!(set_non_blocking_flag(fd, true), "set_non_blocking failed !");
+}
+
+/// # Panics
+/// if set fails.
+pub extern "C" fn set_blocking(fd: SOCKET) {
+    assert!(set_non_blocking_flag(fd, false), "set_blocking failed !");
+}
+
+extern "C" fn set_non_blocking_flag(fd: SOCKET, on: bool) -> bool {
+    let non_blocking = is_non_blocking(fd);
+    if non_blocking == on {
+        return true;
+    }
+    let mut argp = on.try_into().expect("bool to c_ulong failed !");
+    unsafe {
+        windows_sys::Win32::Networking::WinSock::ioctlsocket(
+            fd,
+            windows_sys::Win32::Networking::WinSock::FIONBIO,
+            &mut argp,
+        ) == 0
+    }
+}
+
+#[must_use]
+pub extern "C" fn is_blocking(fd: SOCKET) -> bool {
+    !is_non_blocking(fd)
+}
+
+#[must_use]
+pub extern "C" fn is_non_blocking(fd: SOCKET) -> bool {
+    NON_BLOCKING.contains(&fd)
+}

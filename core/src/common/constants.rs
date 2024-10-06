@@ -88,6 +88,10 @@ pub enum Syscall {
     shutdown,
     close,
     socket,
+    #[cfg(windows)]
+    WSASocketW,
+    #[cfg(windows)]
+    ioctlsocket,
     send,
     sendto,
     write,
@@ -176,6 +180,10 @@ impl From<Syscall> for &str {
             Syscall::shutdown => "shutdown",
             Syscall::close => "close",
             Syscall::socket => "socket",
+            #[cfg(windows)]
+            Syscall::WSASocketW => "WSASocketW",
+            #[cfg(windows)]
+            Syscall::ioctlsocket => "ioctlsocket",
             Syscall::send => "send",
             Syscall::sendto => "sendto",
             Syscall::write => "write",
