@@ -300,7 +300,7 @@ macro_rules! impl_nio_read_iovec {
                             fn_ptr,
                             $fd,
                             arg.as_ptr(),
-                            c_int::try_from(arg.len()).unwrap_or_else(|_| {
+                            std::ffi::c_int::try_from(arg.len()).unwrap_or_else(|_| {
                                 panic!("{} iovcnt overflow", $crate::common::constants::Syscall::$syscall)
                             }),
                             $($arg, )*

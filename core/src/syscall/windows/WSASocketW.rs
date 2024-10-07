@@ -23,11 +23,11 @@ pub extern "system" fn WSASocketW(
     g: c_uint,
     dw_flags: c_uint,
 ) -> SOCKET {
-    static CHAIN: Lazy<SocketSyscallFacade<RawSocketSyscall>> = Lazy::new(Default::default);
+    static CHAIN: Lazy<WSASocketWSyscallFacade<RawWSASocketWSyscall>> = Lazy::new(Default::default);
     CHAIN.WSASocketW(fn_ptr, domain, ty, protocol, lpprotocolinfo, g, dw_flags)
 }
 
-trait SocketSyscall {
+trait WSASocketWSyscall {
     extern "system" fn WSASocketW(
         &self,
         fn_ptr: Option<
@@ -49,7 +49,7 @@ trait SocketSyscall {
     ) -> SOCKET;
 }
 
-impl_facade!(SocketSyscallFacade, SocketSyscall,
+impl_facade!(WSASocketWSyscallFacade, WSASocketWSyscall,
     WSASocketW(
         domain: c_int,
         ty: WINSOCK_SOCKET_TYPE,
@@ -60,7 +60,7 @@ impl_facade!(SocketSyscallFacade, SocketSyscall,
     ) -> SOCKET
 );
 
-impl_raw!(RawSocketSyscall, SocketSyscall, windows_sys::Win32::Networking::WinSock,
+impl_raw!(RawWSASocketWSyscall, WSASocketWSyscall, windows_sys::Win32::Networking::WinSock,
     WSASocketW(
         domain: c_int,
         ty: WINSOCK_SOCKET_TYPE,

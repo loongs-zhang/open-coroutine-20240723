@@ -76,6 +76,8 @@ pub enum Syscall {
     #[cfg(windows)]
     iocp,
     recv,
+    #[cfg(windows)]
+    WSARecv,
     recvfrom,
     read,
     pread,
@@ -93,6 +95,8 @@ pub enum Syscall {
     #[cfg(windows)]
     ioctlsocket,
     send,
+    #[cfg(windows)]
+    WSASend,
     sendto,
     write,
     pwrite,
@@ -168,6 +172,8 @@ impl From<Syscall> for &str {
             #[cfg(windows)]
             Syscall::iocp => "iocp",
             Syscall::recv => "recv",
+            #[cfg(windows)]
+            Syscall::WSARecv => "WSARecv",
             Syscall::recvfrom => "recvfrom",
             Syscall::read => "read",
             Syscall::pread => "pread",
@@ -185,6 +191,8 @@ impl From<Syscall> for &str {
             #[cfg(windows)]
             Syscall::ioctlsocket => "ioctlsocket",
             Syscall::send => "send",
+            #[cfg(windows)]
+            Syscall::WSASend => "WSASend",
             Syscall::sendto => "sendto",
             Syscall::write => "write",
             Syscall::pwrite => "pwrite",
