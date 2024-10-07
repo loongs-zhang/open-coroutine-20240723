@@ -2,7 +2,7 @@ use std::ffi::{c_int, c_uint, c_void};
 use std::io::{Error, ErrorKind};
 use windows_sys::Win32::Foundation::{BOOL, TRUE};
 use windows_sys::Win32::Networking::WinSock::{
-    IPPROTO, SOCKET, WINSOCK_SOCKET_TYPE, WSAPROTOCOL_INFOW,
+    IPPROTO, SOCKADDR, SOCKET, WINSOCK_SOCKET_TYPE, WSAPROTOCOL_INFOW,
 };
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
 
@@ -56,6 +56,17 @@ pub unsafe extern "system" fn DllMain(
 }
 
 unsafe fn attach() -> std::io::Result<()> {
+    impl_hook!("ws2_32.dll", ACCEPT, accept(
+        fd: SOCKET,
+        address: *mut SOCKADDR,
+        address_len: *mut c_int
+    ) -> SOCKET);
+    impl_hook!("ws2_32.dll", IOCTLSOCKET, ioctlsocket(
+        fd: SOCKET,
+        cmd: c_int,
+        argp: *mut c_uint
+    ) -> c_int);
+    impl_hook!("ws2_32.dll", LISTEN, listen(fd: SOCKET, backlog: c_int) -> c_int);
     impl_hook!("kernel32.dll", SLEEP, Sleep(dw_milliseconds: u32) -> ());
     impl_hook!("ws2_32.dll", SOCKET, socket(
         domain: c_int,
@@ -70,11 +81,6 @@ unsafe fn attach() -> std::io::Result<()> {
         g: c_uint,
         dw_flags: c_uint
     ) -> SOCKET);
-    impl_hook!("ws2_32.dll", IOCTLSOCKET, ioctlsocket(
-        fd: SOCKET,
-        cmd: c_int,
-        argp: *mut c_uint
-    ) -> c_int);
     // Enable the hook
     minhook::MinHook::enable_all_hooks()
         .map_err(|_| Error::new(ErrorKind::Other, "init all hooks failed !"))

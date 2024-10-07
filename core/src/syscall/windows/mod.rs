@@ -2,7 +2,9 @@ use dashmap::DashSet;
 use once_cell::sync::Lazy;
 use windows_sys::Win32::Networking::WinSock::SOCKET;
 
+pub use accept::accept;
 pub use ioctlsocket::ioctlsocket;
+pub use listen::listen;
 pub use socket::socket;
 pub use Sleep::Sleep;
 pub use WSASocketW::WSASocketW;
@@ -43,6 +45,54 @@ macro_rules! impl_facade {
     }
 }
 
+macro_rules! impl_nio_read {
+    ( $struct_name:ident, $trait_name: ident, $syscall: ident($fd: ident : $fd_type: ty, $($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
+        #[repr(C)]
+        #[derive(Debug, Default)]
+        struct $struct_name<I: $trait_name> {
+            inner: I,
+        }
+
+        impl<I: $trait_name> $trait_name for $struct_name<I> {
+            extern "system" fn $syscall(
+                &self,
+                fn_ptr: Option<&extern "system" fn($fd_type, $($arg_type),*) -> $result>,
+                $fd: $fd_type,
+                $($arg: $arg_type),*
+            ) -> $result {
+                let blocking = $crate::syscall::common::is_blocking($fd);
+                if blocking {
+                    $crate::syscall::common::set_non_blocking($fd);
+                }
+                let mut r;
+                loop {
+                    r = self.inner.$syscall(fn_ptr, $fd, $($arg, )*);
+                    if r != -1 {
+                        $crate::syscall::common::reset_errno();
+                        break;
+                    }
+                    let error_kind = std::io::Error::last_os_error().kind();
+                    if error_kind == std::io::ErrorKind::WouldBlock {
+                        //wait read event
+                        if $crate::net::EventLoops::wait_read_event(
+                            $fd,
+                            Some($crate::common::constants::SLICE),
+                        ).is_err() {
+                            break;
+                        }
+                    } else if error_kind != std::io::ErrorKind::Interrupted {
+                        break;
+                    }
+                }
+                if blocking {
+                    $crate::syscall::common::set_blocking($fd);
+                }
+                r
+            }
+        }
+    }
+}
+
 macro_rules! impl_raw {
     ( $struct_name: ident, $trait_name: ident, $($mod_name: ident)::*, $syscall: ident($($arg: ident : $arg_type: ty),*) -> $result: ty ) => {
         #[repr(C)]
@@ -67,7 +117,9 @@ macro_rules! impl_raw {
 
 mod Sleep;
 mod WSASocketW;
+mod accept;
 mod ioctlsocket;
+mod listen;
 mod socket;
 
 static NON_BLOCKING: Lazy<DashSet<SOCKET>> = Lazy::new(Default::default);
