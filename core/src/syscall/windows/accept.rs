@@ -3,8 +3,8 @@ use std::ffi::c_int;
 use windows_sys::Win32::Networking::WinSock::{SOCKADDR, SOCKET};
 
 #[must_use]
-pub extern "C" fn accept(
-    fn_ptr: Option<&extern "C" fn(SOCKET, *mut SOCKADDR, *mut c_int) -> SOCKET>,
+pub extern "system" fn accept(
+    fn_ptr: Option<&extern "system" fn(SOCKET, *mut SOCKADDR, *mut c_int) -> SOCKET>,
     fd: SOCKET,
     address: *mut SOCKADDR,
     address_len: *mut c_int,
@@ -15,9 +15,9 @@ pub extern "C" fn accept(
 }
 
 trait AcceptSyscall {
-    extern "C" fn accept(
+    extern "system" fn accept(
         &self,
-        fn_ptr: Option<&extern "C" fn(SOCKET, *mut SOCKADDR, *mut c_int) -> SOCKET>,
+        fn_ptr: Option<&extern "system" fn(SOCKET, *mut SOCKADDR, *mut c_int) -> SOCKET>,
         fd: SOCKET,
         address: *mut SOCKADDR,
         address_len: *mut c_int,

@@ -1,10 +1,13 @@
 use std::ffi::{c_int, c_uint, c_void};
 use std::io::{Error, ErrorKind};
+use windows_sys::core::{PCSTR, PSTR};
 use windows_sys::Win32::Foundation::{BOOL, TRUE};
 use windows_sys::Win32::Networking::WinSock::{
-    IPPROTO, SOCKADDR, SOCKET, WINSOCK_SOCKET_TYPE, WSAPROTOCOL_INFOW,
+    IPPROTO, LPWSAOVERLAPPED_COMPLETION_ROUTINE, SEND_RECV_FLAGS, SOCKADDR, SOCKET,
+    WINSOCK_SHUTDOWN_HOW, WINSOCK_SOCKET_TYPE, WSABUF, WSAPROTOCOL_INFOW,
 };
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
+use windows_sys::Win32::System::IO::OVERLAPPED;
 
 // check https://www.rustwiki.org.cn/en/reference/introduction.html for help information
 #[allow(unused_macros)]
@@ -67,12 +70,43 @@ unsafe fn attach() -> std::io::Result<()> {
         argp: *mut c_uint
     ) -> c_int);
     impl_hook!("ws2_32.dll", LISTEN, listen(fd: SOCKET, backlog: c_int) -> c_int);
+    impl_hook!("ws2_32.dll", RECV, recv(
+        fd: SOCKET,
+        buf: PSTR,
+        len: c_int,
+        flags: SEND_RECV_FLAGS
+    ) -> c_int);
+    impl_hook!("ws2_32.dll", SEND, send(
+        fd: SOCKET,
+        buf: PCSTR,
+        len: c_int,
+        flags: SEND_RECV_FLAGS
+    ) -> c_int);
+    impl_hook!("ws2_32.dll", SHUTDOWN, shutdown(fd: SOCKET, how: WINSOCK_SHUTDOWN_HOW) -> c_int);
     impl_hook!("kernel32.dll", SLEEP, Sleep(dw_milliseconds: u32) -> ());
     impl_hook!("ws2_32.dll", SOCKET, socket(
         domain: c_int,
         ty: WINSOCK_SOCKET_TYPE,
         protocol: IPPROTO
     ) -> SOCKET);
+    impl_hook!("ws2_32.dll", WSARECV, WSARecv(
+        fd: SOCKET,
+        buf: *const WSABUF,
+        dwbuffercount: c_uint,
+        lpnumberofbytesrecvd: *mut c_uint,
+        lpflags : *mut c_uint,
+        lpoverlapped: *mut OVERLAPPED,
+        lpcompletionroutine : LPWSAOVERLAPPED_COMPLETION_ROUTINE
+    ) -> c_int);
+    impl_hook!("ws2_32.dll", WSASEND, WSASend(
+        fd: SOCKET,
+        buf: *const WSABUF,
+        dwbuffercount: c_uint,
+        lpnumberofbytesrecvd: *mut c_uint,
+        dwflags : c_uint,
+        lpoverlapped: *mut OVERLAPPED,
+        lpcompletionroutine : LPWSAOVERLAPPED_COMPLETION_ROUTINE
+    ) -> c_int);
     impl_hook!("ws2_32.dll", WSASOCKETW, WSASocketW(
         domain: c_int,
         ty: WINSOCK_SOCKET_TYPE,
