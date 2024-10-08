@@ -91,7 +91,6 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
                         // assert!(handler.stack_ptr_in_bounds(sp), "coroutine {} stack overflow !", co.get_name());
                         // let regs = handler.setup_trap_handler(|| Err("invalid memory reference"));
                         let stack_ptr_in_bounds = handler.stack_ptr_in_bounds(sp);
-                        // todo here we can grow stack in the future
                         let regs = handler.setup_trap_handler(move || {
                             Err(if stack_ptr_in_bounds {
                                 "invalid memory reference"
@@ -230,7 +229,6 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
                     // }
                     // let regs = handler.setup_trap_handler(|| Err("invalid memory reference"));
                     let stack_ptr_in_bounds = handler.stack_ptr_in_bounds(sp);
-                    // todo here we can grow stack in the future
                     let regs = handler.setup_trap_handler(move || {
                         Err(if stack_ptr_in_bounds {
                             "invalid memory reference"
@@ -248,7 +246,7 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
                             (*(*exception_info).ContextRecord).Rdi = rdi;
                             (*(*exception_info).ContextRecord).Rsi = rsi;
                         } else if #[cfg(target_arch = "x86")] {
-                            let TrapHandlerRegs { eip, esp, ebp, ecx, edx } = regs;
+                            let TrapHandlerRegs { eip, esp, ebp, ecx, edx, .. } = regs;
                             (*(*exception_info).ContextRecord).Eip = eip;
                             (*(*exception_info).ContextRecord).Esp = esp;
                             (*(*exception_info).ContextRecord).Ebp = ebp;
