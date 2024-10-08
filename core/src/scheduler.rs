@@ -116,7 +116,7 @@ impl<'s> Scheduler<'s> {
     /// if create coroutine fails.
     pub fn submit_co(
         &self,
-        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 's,
+        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 'static,
         stack_size: Option<usize>,
     ) -> std::io::Result<()> {
         let mut co = co!(

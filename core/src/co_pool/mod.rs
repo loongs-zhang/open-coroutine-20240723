@@ -347,7 +347,7 @@ impl<'p> CoroutinePool<'p> {
     /// if create failed.
     pub fn submit_co(
         &self,
-        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 'p,
+        f: impl FnOnce(&Suspender<(), ()>, ()) -> Option<usize> + 'static,
         stack_size: Option<usize>,
     ) -> std::io::Result<()> {
         if self.get_running_size() >= self.get_max_size() {

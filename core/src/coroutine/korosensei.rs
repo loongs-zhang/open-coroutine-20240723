@@ -5,7 +5,7 @@ use crate::coroutine::local::CoroutineLocal;
 use crate::coroutine::suspender::Suspender;
 use corosensei::stack::{DefaultStack, Stack};
 use corosensei::trap::TrapHandlerRegs;
-use corosensei::{CoroutineResult, ScopedCoroutine};
+use corosensei::CoroutineResult;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -24,7 +24,7 @@ cfg_if::cfg_if! {
 #[repr(C)]
 pub struct Coroutine<'c, Param, Yield, Return> {
     pub(crate) name: String,
-    inner: ScopedCoroutine<'c, Param, Yield, Result<Return, &'static str>, DefaultStack>,
+    inner: corosensei::Coroutine<Param, Yield, Result<Return, &'static str>, DefaultStack>,
     pub(crate) state: Cell<CoroutineState<Yield, Return>>,
     pub(crate) stack_size: usize,
     pub(crate) stack_bottom: RefCell<VecDeque<usize>>,
@@ -345,10 +345,11 @@ impl<Param, Yield, Return> Drop for Coroutine<'_, Param, Yield, Return> {
     }
 }
 
-impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return>
+impl<Param, Yield, Return> Coroutine<'_, Param, Yield, Return>
 where
-    Yield: Debug + Copy + Eq,
-    Return: Debug + Copy + Eq,
+    Param: 'static,
+    Yield: Debug + Copy + Eq + 'static,
+    Return: Debug + Copy + Eq + 'static,
 {
     /// Create a new coroutine.
     ///
@@ -356,13 +357,13 @@ where
     /// if stack allocate failed.
     pub fn new<F>(name: String, f: F, stack_size: usize) -> std::io::Result<Self>
     where
-        F: FnOnce(&Suspender<Param, Yield>, Param) -> Return + 'c,
+        F: FnOnce(&Suspender<Param, Yield>, Param) -> Return + 'static,
     {
         let stack_size = stack_size.max(crate::common::page_size());
         let stack = DefaultStack::new(stack_size)?;
         let stack_bottom = RefCell::new(VecDeque::from([stack.limit().get()]));
         let co_name = name.clone().leak();
-        let inner = ScopedCoroutine::with_stack(stack, move |y, p| {
+        let inner = corosensei::Coroutine::with_stack(stack, move |y, p| {
             catch!(
                 move || {
                     let suspender = Suspender::new(y);

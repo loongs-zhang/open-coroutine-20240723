@@ -99,8 +99,8 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
 
 impl<Yield, Return> Coroutine<'_, (), Yield, Return>
 where
-    Yield: Debug + Copy + Eq,
-    Return: Debug + Copy + Eq,
+    Yield: Debug + Copy + Eq + 'static,
+    Return: Debug + Copy + Eq + 'static,
 {
     /// A simpler version of [`Coroutine::resume_with`].
     pub fn resume(&mut self) -> std::io::Result<CoroutineState<Yield, Return>> {
@@ -110,8 +110,9 @@ where
 
 impl<Param, Yield, Return> Coroutine<'_, Param, Yield, Return>
 where
-    Yield: Debug + Copy + Eq,
-    Return: Debug + Copy + Eq,
+    Param: 'static,
+    Yield: Debug + Copy + Eq + 'static,
+    Return: Debug + Copy + Eq + 'static,
 {
     /// Resumes the execution of this coroutine.
     ///
