@@ -25,6 +25,9 @@ windows-sys = { workspace = true, features = [
     "Win32_System_Diagnostics_Debug",
 ] }
 
+[dev-dependencies]
+tempfile.workspace = true
+
 [features]
 default = ["open-coroutine-hook/default", "open-coroutine-core/default"]
 
