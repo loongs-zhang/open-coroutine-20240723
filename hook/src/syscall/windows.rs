@@ -1,13 +1,13 @@
-use std::ffi::{c_int, c_uint, c_void};
+use std::ffi::{c_int, c_longlong, c_uint, c_void};
 use std::io::{Error, ErrorKind};
 use windows_sys::core::{PCSTR, PSTR};
-use windows_sys::Win32::Foundation::{BOOL, TRUE};
+use windows_sys::Win32::Foundation::{BOOL, HANDLE, NTSTATUS, TRUE};
 use windows_sys::Win32::Networking::WinSock::{
     IPPROTO, LPWSAOVERLAPPED_COMPLETION_ROUTINE, SEND_RECV_FLAGS, SOCKADDR, SOCKET,
     WINSOCK_SHUTDOWN_HOW, WINSOCK_SOCKET_TYPE, WSABUF, WSAPROTOCOL_INFOW,
 };
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
-use windows_sys::Win32::System::IO::OVERLAPPED;
+use windows_sys::Win32::System::IO::{IO_STATUS_BLOCK, OVERLAPPED, PIO_APC_ROUTINE};
 
 // check https://www.rustwiki.org.cn/en/reference/introduction.html for help information
 #[allow(unused_macros)]
@@ -70,6 +70,28 @@ unsafe fn attach() -> std::io::Result<()> {
         argp: *mut c_uint
     ) -> c_int);
     impl_hook!("ws2_32.dll", LISTEN, listen(fd: SOCKET, backlog: c_int) -> c_int);
+    impl_hook!("ntdll.dll", NTREADFILE, NtReadFile(
+        filehandle : HANDLE,
+        event : HANDLE,
+        apcroutine : PIO_APC_ROUTINE,
+        apccontext : *const c_void,
+        iostatusblock : *mut IO_STATUS_BLOCK,
+        buffer : *mut c_void,
+        length : c_uint,
+        byteoffset : *const c_longlong,
+        key : *const c_uint
+    ) -> NTSTATUS);
+    impl_hook!("ntdll.dll", NTWRITEFILE, NtWriteFile(
+        filehandle: HANDLE,
+        event: HANDLE,
+        apcroutine: PIO_APC_ROUTINE,
+        apccontext: *const c_void,
+        iostatusblock: *mut IO_STATUS_BLOCK,
+        buffer: *const c_void,
+        length: c_uint,
+        byteoffset: *const c_longlong,
+        key: *const c_uint
+    ) -> NTSTATUS);
     impl_hook!("ws2_32.dll", RECV, recv(
         fd: SOCKET,
         buf: PSTR,

@@ -84,6 +84,8 @@ pub enum Syscall {
     readv,
     preadv,
     recvmsg,
+    #[cfg(windows)]
+    NtReadFile,
     connect,
     listen,
     accept,
@@ -103,6 +105,8 @@ pub enum Syscall {
     writev,
     pwritev,
     sendmsg,
+    #[cfg(windows)]
+    NtWriteFile,
     fsync,
     renameat,
     #[cfg(target_os = "linux")]
@@ -180,6 +184,8 @@ impl From<Syscall> for &str {
             Syscall::readv => "readv",
             Syscall::preadv => "preadv",
             Syscall::recvmsg => "recvmsg",
+            #[cfg(windows)]
+            Syscall::NtReadFile => "NtReadFile",
             Syscall::connect => "connect",
             Syscall::listen => "listen",
             Syscall::accept => "accept",
@@ -199,6 +205,8 @@ impl From<Syscall> for &str {
             Syscall::writev => "writev",
             Syscall::pwritev => "pwritev",
             Syscall::sendmsg => "sendmsg",
+            #[cfg(windows)]
+            Syscall::NtWriteFile => "NtWriteFile",
             Syscall::fsync => "fsync",
             Syscall::renameat => "renameat",
             #[cfg(target_os = "linux")]

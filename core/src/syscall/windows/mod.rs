@@ -9,6 +9,8 @@ pub use recv::recv;
 pub use send::send;
 pub use shutdown::shutdown;
 pub use socket::socket;
+pub use NtReadFile::NtReadFile;
+pub use NtWriteFile::NtWriteFile;
 pub use Sleep::Sleep;
 pub use WSARecv::WSARecv;
 pub use WSASend::WSASend;
@@ -450,6 +452,8 @@ macro_rules! impl_raw {
     }
 }
 
+mod NtReadFile;
+mod NtWriteFile;
 mod Sleep;
 mod WSARecv;
 mod WSASend;
