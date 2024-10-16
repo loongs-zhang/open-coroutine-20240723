@@ -322,7 +322,8 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
         // if we can't guess the remaining stack (unsupported on some platforms) we immediately grow
         // the stack and then cache the new stack size (which we do know now because we allocated it.
         if let Some(co) = Self::current() {
-            if unsafe { co.remaining_stack() } >= red_zone {
+            let remaining_stack = unsafe { co.remaining_stack() };
+            if remaining_stack >= red_zone {
                 return Ok(callback());
             }
             return DefaultStack::new(stack_size).map(|stack| {

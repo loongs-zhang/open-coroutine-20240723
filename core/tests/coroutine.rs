@@ -1,3 +1,4 @@
+use corosensei::stack::{DefaultStack, Stack};
 use open_coroutine_core::co;
 use open_coroutine_core::common::constants::CoroutineState;
 use open_coroutine_core::coroutine::suspender::Suspender;
@@ -69,7 +70,6 @@ fn coroutine_delay() -> std::io::Result<()> {
     Ok(())
 }
 
-#[cfg(not(windows))]
 #[test]
 fn coroutine_stack_growth() -> std::io::Result<()> {
     let mut coroutine = co!(|_: &Suspender<(), ()>, ()| {
@@ -84,8 +84,9 @@ fn coroutine_stack_growth() -> std::io::Result<()> {
             .expect("allocate stack failed")
         }
 
-        let max_remaining = open_coroutine_core::common::constants::DEFAULT_STACK_SIZE
-            + open_coroutine_core::common::page_size();
+        let stack = DefaultStack::new(open_coroutine_core::common::constants::DEFAULT_STACK_SIZE)
+            .expect("allocate stack failed");
+        let max_remaining = stack.base().get() - stack.limit().get();
         // Use ~500KB of stack.
         recurse(50, &mut [0; 10240]);
         let remaining_stack = unsafe {
@@ -95,7 +96,7 @@ fn coroutine_stack_growth() -> std::io::Result<()> {
         };
         assert!(
             remaining_stack < max_remaining,
-            "remaining stack {remaining_stack}"
+            "remaining stack {remaining_stack} when max {max_remaining}"
         );
         // Use ~500KB of stack.
         recurse(50, &mut [0; 10240]);
@@ -106,7 +107,7 @@ fn coroutine_stack_growth() -> std::io::Result<()> {
         };
         assert!(
             remaining_stack < max_remaining,
-            "remaining stack {remaining_stack}"
+            "remaining stack {remaining_stack} when max {max_remaining}"
         );
     })?;
     assert_eq!(coroutine.resume()?, CoroutineState::Complete(()));

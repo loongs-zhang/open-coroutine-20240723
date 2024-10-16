@@ -138,7 +138,14 @@ pub fn default_red_zone() -> usize {
     static DEFAULT_RED_ZONE: AtomicUsize = AtomicUsize::new(0);
     let mut ret = DEFAULT_RED_ZONE.load(Ordering::Relaxed);
     if ret == 0 {
-        ret = 16 * 1024 + page_size();
+        cfg_if::cfg_if! {
+            if #[cfg(windows)] {
+                let base = 32 * 1024;
+            } else {
+                let base = 16 * 1024;
+            }
+        }
+        ret = base + page_size();
         DEFAULT_RED_ZONE.store(ret, Ordering::Relaxed);
     }
     ret
