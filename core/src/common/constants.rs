@@ -109,6 +109,7 @@ pub enum Syscall {
     renameat2,
     mkdirat,
     openat,
+    pthread_cond_timedwait,
 }
 
 impl Syscall {
@@ -142,70 +143,7 @@ impl_display_by_debug!(Syscall);
 
 impl From<Syscall> for &str {
     fn from(val: Syscall) -> Self {
-        match val {
-            #[cfg(windows)]
-            Syscall::Sleep => "Sleep",
-            Syscall::sleep => "sleep",
-            Syscall::usleep => "usleep",
-            Syscall::nanosleep => "nanosleep",
-            Syscall::poll => "poll",
-            Syscall::select => "select",
-            #[cfg(target_os = "linux")]
-            Syscall::accept4 => "accept4",
-            #[cfg(target_os = "linux")]
-            Syscall::epoll_ctl => "epoll_ctl",
-            #[cfg(target_os = "linux")]
-            Syscall::epoll_wait => "epoll_wait",
-            #[cfg(target_os = "linux")]
-            Syscall::io_uring_enter => "io_uring_enter",
-            #[cfg(any(
-                target_os = "macos",
-                target_os = "ios",
-                target_os = "tvos",
-                target_os = "watchos",
-                target_os = "freebsd",
-                target_os = "dragonfly",
-                target_os = "openbsd",
-                target_os = "netbsd"
-            ))]
-            Syscall::kevent => "kevent",
-            #[cfg(windows)]
-            Syscall::iocp => "iocp",
-            Syscall::recv => "recv",
-            #[cfg(windows)]
-            Syscall::WSARecv => "WSARecv",
-            Syscall::recvfrom => "recvfrom",
-            Syscall::read => "read",
-            Syscall::pread => "pread",
-            Syscall::readv => "readv",
-            Syscall::preadv => "preadv",
-            Syscall::recvmsg => "recvmsg",
-            Syscall::connect => "connect",
-            Syscall::listen => "listen",
-            Syscall::accept => "accept",
-            Syscall::shutdown => "shutdown",
-            Syscall::close => "close",
-            Syscall::socket => "socket",
-            #[cfg(windows)]
-            Syscall::WSASocketW => "WSASocketW",
-            #[cfg(windows)]
-            Syscall::ioctlsocket => "ioctlsocket",
-            Syscall::send => "send",
-            #[cfg(windows)]
-            Syscall::WSASend => "WSASend",
-            Syscall::sendto => "sendto",
-            Syscall::write => "write",
-            Syscall::pwrite => "pwrite",
-            Syscall::writev => "writev",
-            Syscall::pwritev => "pwritev",
-            Syscall::sendmsg => "sendmsg",
-            Syscall::fsync => "fsync",
-            Syscall::renameat => "renameat",
-            #[cfg(target_os = "linux")]
-            Syscall::renameat2 => "renameat2",
-            Syscall::mkdirat => "mkdirat",
-            Syscall::openat => "openat",
-        }
+        format!("{val}").leak()
     }
 }
 

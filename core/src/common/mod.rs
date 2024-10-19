@@ -140,12 +140,11 @@ pub fn default_red_zone() -> usize {
     if ret == 0 {
         cfg_if::cfg_if! {
             if #[cfg(windows)] {
-                let base = 32 * 1024;
+                ret = 32 * 1024 + page_size() * 3;
             } else {
-                let base = 16 * 1024;
+                ret = 16 * 1024 + page_size();
             }
         }
-        ret = base + page_size();
         DEFAULT_RED_ZONE.store(ret, Ordering::Relaxed);
     }
     ret
