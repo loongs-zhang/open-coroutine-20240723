@@ -86,7 +86,7 @@ impl<'c, Param, Yield, Return> Coroutine<'c, Param, Yield, Return> {
     ///
     /// The closure `f` is guaranteed to run on a stack with at least `32 * 1024` bytes, and it will be
     /// run on the current stack if there's space available.
-    #[allow(clippy::inline_always, missing_docs)]
+    #[allow(clippy::inline_always)]
     #[inline(always)]
     pub fn maybe_grow<R, F: FnOnce() -> R>(callback: F) -> std::io::Result<R> {
         Self::maybe_grow_with(

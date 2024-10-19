@@ -296,29 +296,26 @@ mod tests {
     #[test]
     fn test() {
         init(Config::single());
-        #[cfg(not(windows))]
-        {
-            let join = task!(
-                move |_| {
-                    fn recurse(i: u32, p: &mut [u8; 10240]) {
-                        maybe_grow!(|| {
-                            // Ensure the stack allocation isn't optimized away.
-                            unsafe { _ = std::ptr::read_volatile(&p) };
-                            if i > 0 {
-                                recurse(i - 1, &mut [0; 10240]);
-                            }
-                        })
-                        .expect("allocate stack failed")
-                    }
-                    // Use ~500KB of stack.
-                    recurse(50, &mut [0; 10240]);
-                    // Use ~500KB of stack.
-                    recurse(50, &mut [0; 10240]);
-                },
-                (),
-            );
-            assert_eq!(Some(()), join.join().expect("join failed"));
-        }
+        let join = task!(
+            move |_| {
+                fn recurse(i: u32, p: &mut [u8; 10240]) {
+                    maybe_grow!(|| {
+                        // Ensure the stack allocation isn't optimized away.
+                        unsafe { _ = std::ptr::read_volatile(&p) };
+                        if i > 0 {
+                            recurse(i - 1, &mut [0; 10240]);
+                        }
+                    })
+                    .expect("allocate stack failed")
+                }
+                // Use ~500KB of stack.
+                recurse(50, &mut [0; 10240]);
+                // Use ~500KB of stack.
+                recurse(50, &mut [0; 10240]);
+            },
+            (),
+        );
+        assert_eq!(Some(()), join.join().expect("join failed"));
         shutdown();
     }
 }

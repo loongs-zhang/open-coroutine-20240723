@@ -304,7 +304,7 @@ impl<'e> EventLoop<'e> {
                     }
                     // thread per core
                     info!(
-                        "{} has started, pin:{}",
+                        "{} has started, bind to CPU:{}",
                         consumer.name(),
                         core_affinity::set_for_current(core_affinity::CoreId { id: consumer.cpu })
                     );
