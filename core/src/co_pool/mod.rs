@@ -248,19 +248,19 @@ impl<'p> CoroutinePool<'p> {
         &self,
         task_name: &str,
         wait_time: Duration,
-    ) -> std::io::Result<Option<Result<Option<usize>, &str>>> {
+    ) -> std::io::Result<Result<Option<usize>, &str>> {
         let key = Box::leak(Box::from(task_name));
         if let Some(r) = self.try_get_task_result(key) {
             self.notify(key);
             drop(self.waits.remove(key));
-            return Ok(Some(r));
+            return Ok(r);
         }
         if SchedulableCoroutine::current().is_some() {
             let timeout_time = get_timeout_time(wait_time);
             loop {
                 _ = self.try_run();
                 if let Some(r) = self.try_get_task_result(key) {
-                    return Ok(Some(r));
+                    return Ok(r);
                 }
                 if timeout_time.saturating_sub(now()) == 0 {
                     return Err(Error::new(ErrorKind::TimedOut, "wait timeout"));
@@ -287,7 +287,7 @@ impl<'p> CoroutinePool<'p> {
         if let Some(r) = self.try_get_task_result(key) {
             self.notify(key);
             assert!(self.waits.remove(key).is_some());
-            return Ok(Some(r));
+            return Ok(r);
         }
         Err(Error::new(ErrorKind::TimedOut, "wait timeout"))
     }
