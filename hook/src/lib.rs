@@ -108,7 +108,7 @@ pub extern "C" fn task_join(handle: &JoinHandle) -> c_long {
                 Some(ptr) => ptr as *mut c_void as c_long,
                 None => 0,
             },
-            Err(_) => -1,
+            Err(msg) => panic!("task_join fail {msg}"),
         },
         Err(_) => -1,
     }
@@ -123,7 +123,7 @@ pub extern "C" fn task_timeout_join(handle: &JoinHandle, ns_time: u64) -> c_long
                 Some(ptr) => ptr as *mut c_void as c_long,
                 None => 0,
             },
-            Err(_) => -1,
+            Err(msg) => panic!("task_timeout_join fail {msg}"),
         },
         Err(_) => -1,
     }
