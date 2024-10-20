@@ -53,7 +53,7 @@ use open_coroutine_core::net::config::Config;
 use open_coroutine_core::net::join::JoinHandle;
 use open_coroutine_core::net::{EventLoops, UserFunc};
 use open_coroutine_core::scheduler::SchedulableCoroutine;
-use std::ffi::{c_int, c_long, c_uint};
+use std::ffi::{c_int, c_longlong, c_uint};
 use std::time::Duration;
 
 static HOOK: OnceCell<bool> = OnceCell::new();
@@ -101,11 +101,11 @@ pub extern "C" fn task_crate(f: UserTaskFunc, param: usize) -> JoinHandle {
 
 ///等待任务完成
 #[no_mangle]
-pub extern "C" fn task_join(handle: &JoinHandle) -> c_long {
+pub extern "C" fn task_join(handle: &JoinHandle) -> c_longlong {
     match handle.join() {
         Ok(ptr) => match ptr {
             Ok(ptr) => match ptr {
-                Some(ptr) => c_long::try_from(ptr).expect("overflow"),
+                Some(ptr) => c_longlong::try_from(ptr).expect("overflow"),
                 None => 0,
             },
             Err(_) => -1,
@@ -116,11 +116,11 @@ pub extern "C" fn task_join(handle: &JoinHandle) -> c_long {
 
 ///等待任务完成
 #[no_mangle]
-pub extern "C" fn task_timeout_join(handle: &JoinHandle, ns_time: u64) -> c_long {
+pub extern "C" fn task_timeout_join(handle: &JoinHandle, ns_time: u64) -> c_longlong {
     match handle.timeout_join(Duration::from_nanos(ns_time)) {
         Ok(ptr) => match ptr {
             Ok(ptr) => match ptr {
-                Some(ptr) => c_long::try_from(ptr).expect("overflow"),
+                Some(ptr) => c_longlong::try_from(ptr).expect("overflow"),
                 None => 0,
             },
             Err(_) => -1,
@@ -136,7 +136,7 @@ pub extern "C" fn maybe_grow_stack(
     stack_size: usize,
     f: UserFunc,
     param: usize,
-) -> c_long {
+) -> c_longlong {
     let red_zone = if red_zone > 0 {
         red_zone
     } else {
@@ -148,7 +148,7 @@ pub extern "C" fn maybe_grow_stack(
         open_coroutine_core::common::constants::DEFAULT_STACK_SIZE
     };
     if let Ok(r) = SchedulableCoroutine::maybe_grow_with(red_zone, stack_size, || f(param)) {
-        return c_long::try_from(r).expect("overflow");
+        return c_longlong::try_from(r).expect("overflow");
     }
     -1
 }
