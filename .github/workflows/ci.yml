@@ -26,6 +26,13 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
+      - name: Run cargo deny
+        if: ${{ contains(matrix.os, 'ubuntu') }}
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          log-level: warn
+          command: check
+          arguments: --all-features
       - name: Run tests
         env:
           CHANNEL: ${{ matrix.channel }}
@@ -35,13 +42,13 @@ jobs:
           PROJECT_DIR: ${{ github.workspace }}
         run: sh .github/workflows/ci.sh
       - name: Run preemptive tests
+        if: always()
         env:
           CHANNEL: ${{ matrix.channel }}
           CROSS: ${{ !startsWith(matrix.target, 'x86_64') && contains(matrix.target, 'linux') && '1' || '0' }}
           TARGET: ${{ matrix.target }}
           OS: ${{ matrix.os }}
           PROJECT_DIR: ${{ github.workspace }}
-        if: always()
         run: sh .github/workflows/ci-preemptive.sh
 
     strategy:
