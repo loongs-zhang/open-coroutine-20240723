@@ -110,7 +110,7 @@ pub extern "C" fn task_join(handle: &JoinHandle) -> c_long {
             },
             Err(msg) => panic!("task_join fail {msg}"),
         },
-        Err(_) => -1,
+        Err(e) => panic!("task_join fail {e}"),
     }
 }
 
@@ -125,7 +125,7 @@ pub extern "C" fn task_timeout_join(handle: &JoinHandle, ns_time: u64) -> c_long
             },
             Err(msg) => panic!("task_timeout_join fail {msg}"),
         },
-        Err(_) => -1,
+        Err(e) => panic!("task_timeout_join fail {e}"),
     }
 }
 
