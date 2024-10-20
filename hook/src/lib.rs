@@ -53,7 +53,7 @@ use open_coroutine_core::net::config::Config;
 use open_coroutine_core::net::join::JoinHandle;
 use open_coroutine_core::net::{EventLoops, UserFunc};
 use open_coroutine_core::scheduler::SchedulableCoroutine;
-use std::ffi::{c_int, c_long, c_uint, c_void};
+use std::ffi::{c_int, c_long, c_uint};
 use std::time::Duration;
 
 static HOOK: OnceCell<bool> = OnceCell::new();
@@ -105,12 +105,12 @@ pub extern "C" fn task_join(handle: &JoinHandle) -> c_long {
     match handle.join() {
         Ok(ptr) => match ptr {
             Ok(ptr) => match ptr {
-                Some(ptr) => ptr as *mut c_void as c_long,
+                Some(ptr) => c_long::try_from(ptr).expect("overflow"),
                 None => 0,
             },
-            Err(msg) => panic!("task_join fail {msg}"),
+            Err(_) => -1,
         },
-        Err(e) => panic!("task_join fail {e}"),
+        Err(_) => -1,
     }
 }
 
@@ -120,12 +120,12 @@ pub extern "C" fn task_timeout_join(handle: &JoinHandle, ns_time: u64) -> c_long
     match handle.timeout_join(Duration::from_nanos(ns_time)) {
         Ok(ptr) => match ptr {
             Ok(ptr) => match ptr {
-                Some(ptr) => ptr as *mut c_void as c_long,
+                Some(ptr) => c_long::try_from(ptr).expect("overflow"),
                 None => 0,
             },
-            Err(msg) => panic!("task_timeout_join fail {msg}"),
+            Err(_) => -1,
         },
-        Err(e) => panic!("task_timeout_join fail {e}"),
+        Err(_) => -1,
     }
 }
 
