@@ -62,3 +62,8 @@ impl_hook!(WRITEV, writev(fd: c_int, iov: *const iovec, iovcnt: c_int) -> ssize_
 impl_hook!(PWRITEV, pwritev(fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off_t) -> ssize_t);
 impl_hook!(SENDMSG, sendmsg(fd: c_int, msg: *const msghdr, flags: c_int) -> ssize_t);
 impl_hook!(PTHREAD_COND_TIMEDWAIT, pthread_cond_timedwait(cond: *mut pthread_cond_t, lock: *mut pthread_mutex_t, abstime: *const timespec) -> c_int);
+// NOTE: unhook pthread_mutex_lock due to stack overflow
+// impl_hook!(PTHREAD_MUTEX_LOCK, pthread_mutex_lock(lock: *mut pthread_mutex_t) -> c_int);
+impl_hook!(PTHREAD_MUTEX_TRYLOCK, pthread_mutex_trylock(lock: *mut pthread_mutex_t) -> c_int);
+// NOTE: unhook pthread_mutex_unlock due to stack overflow
+// impl_hook!(PTHREAD_MUTEX_UNLOCK, pthread_mutex_unlock(lock: *mut pthread_mutex_t) -> c_int);

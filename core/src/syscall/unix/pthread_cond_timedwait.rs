@@ -1,6 +1,6 @@
 use crate::common::now;
 use crate::net::EventLoops;
-use libc::{pthread_cond_t, pthread_mutex_t, timespec, EINVAL, ETIMEDOUT};
+use libc::{pthread_cond_t, pthread_mutex_t, timespec};
 use once_cell::sync::Lazy;
 use std::ffi::c_int;
 use std::time::Duration;
@@ -48,7 +48,6 @@ struct NioPthreadCondTimedwaitSyscall<I: PthreadCondTimedwaitSyscall> {
     inner: I,
 }
 
-#[allow(warnings)]
 impl<I: PthreadCondTimedwaitSyscall> PthreadCondTimedwaitSyscall
     for NioPthreadCondTimedwaitSyscall<I>
 {
@@ -66,7 +65,7 @@ impl<I: PthreadCondTimedwaitSyscall> PthreadCondTimedwaitSyscall
         } else {
             let abstime = unsafe { *abstime };
             if abstime.tv_sec < 0 || abstime.tv_nsec < 0 || abstime.tv_nsec > 999_999_999 {
-                return EINVAL;
+                return libc::EINVAL;
             }
             u64::try_from(Duration::new(abstime.tv_sec as u64, abstime.tv_nsec as u32).as_nanos())
                 .unwrap_or(u64::MAX)
@@ -81,22 +80,26 @@ impl<I: PthreadCondTimedwaitSyscall> PthreadCondTimedwaitSyscall
                     tv_nsec: 0,
                 },
             );
-            if ETIMEDOUT != r {
+            if libc::ETIMEDOUT != r {
                 return r;
             }
             let left_time = abstimeout.saturating_sub(now());
             if 0 == left_time {
-                return ETIMEDOUT;
+                return libc::ETIMEDOUT;
             }
             let wait_time = if left_time > 10_000_000 {
                 10_000_000
             } else {
                 left_time
             };
-            _ = EventLoops::wait_event(Some(Duration::new(
+            if EventLoops::wait_event(Some(Duration::new(
                 wait_time / 1_000_000_000,
                 (wait_time % 1_000_000_000) as _,
-            )));
+            )))
+            .is_err()
+            {
+                return r;
+            }
         }
     }
 }

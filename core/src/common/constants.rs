@@ -110,6 +110,9 @@ pub enum Syscall {
     mkdirat,
     openat,
     pthread_cond_timedwait,
+    pthread_mutex_trylock,
+    pthread_mutex_lock,
+    pthread_mutex_unlock,
 }
 
 impl Syscall {
