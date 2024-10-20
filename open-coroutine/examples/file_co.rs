@@ -7,7 +7,7 @@ pub fn main() -> Result<()> {
     let join_handle: JoinHandle<Result<()>> = task!(
         |_| {
             const HELLO: &str = "Hello World!";
-
+            println!("[coroutine] launched");
             // Write
             let mut tmpfile: File = tempfile::tempfile()?;
             assert_eq!(HELLO.len(), tmpfile.write(HELLO.as_ref())?);
@@ -33,7 +33,7 @@ pub fn main() -> Result<()> {
             assert_eq!(HELLO.len() * 2, tmpfile.read_vectored(&mut ioslicemuts)?);
             assert_eq!(HELLO, unsafe { std::str::from_utf8_unchecked(&mut buf1) });
             assert_eq!(HELLO, unsafe { std::str::from_utf8_unchecked(&mut buf2) });
-
+            println!("[coroutine] exited");
             Ok(())
         },
         ()
