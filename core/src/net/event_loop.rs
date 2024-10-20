@@ -3,7 +3,7 @@ use crate::common::beans::BeanFactory;
 use crate::common::constants::{CoroutineState, PoolState, Syscall, SyscallState, SLICE};
 use crate::net::selector::{Event, Events, Poller, Selector};
 use crate::scheduler::SchedulableCoroutine;
-use crate::{impl_current_for, impl_display_by_debug, info};
+use crate::{error, impl_current_for, impl_display_by_debug, info};
 use crossbeam_utils::atomic::AtomicCell;
 use dashmap::DashSet;
 use once_cell::sync::Lazy;
@@ -189,7 +189,7 @@ impl<'e> EventLoop<'e> {
                 {
                     let new_state = SyscallState::Suspend(timestamp);
                     if co.syscall((), syscall, new_state).is_err() {
-                        crate::error!(
+                        error!(
                             "{} change to syscall {} {} failed !",
                             co.name(),
                             syscall,
@@ -212,7 +212,7 @@ impl<'e> EventLoop<'e> {
                 {
                     let new_state = SyscallState::Executing;
                     if co.syscall((), syscall, new_state).is_err() {
-                        crate::error!(
+                        error!(
                             "{} change to syscall {} {} failed !",
                             co.name(),
                             syscall,

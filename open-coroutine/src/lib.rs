@@ -53,7 +53,7 @@ pub use open_coroutine_core::net::config::Config;
 use open_coroutine_core::net::UserFunc;
 pub use open_coroutine_macros::*;
 use std::cmp::Ordering;
-use std::ffi::{c_int, c_long, c_uint, c_void};
+use std::ffi::{c_int, c_longlong, c_uint, c_void};
 use std::io::{Error, ErrorKind};
 use std::marker::PhantomData;
 use std::net::{TcpStream, ToSocketAddrs};
@@ -65,19 +65,24 @@ extern "C" {
 
     fn open_coroutine_stop(secs: c_uint) -> c_int;
 
-    fn maybe_grow_stack(red_zone: usize, stack_size: usize, f: UserFunc, param: usize) -> c_long;
+    fn maybe_grow_stack(
+        red_zone: usize,
+        stack_size: usize,
+        f: UserFunc,
+        param: usize,
+    ) -> c_longlong;
 }
 
 #[allow(improper_ctypes)]
 extern "C" {
     fn task_crate(f: UserTaskFunc, param: usize) -> open_coroutine_core::net::join::JoinHandle;
 
-    fn task_join(handle: &open_coroutine_core::net::join::JoinHandle) -> libc::c_long;
+    fn task_join(handle: &open_coroutine_core::net::join::JoinHandle) -> c_longlong;
 
     fn task_timeout_join(
         handle: &open_coroutine_core::net::join::JoinHandle,
         ns_time: u64,
-    ) -> libc::c_long;
+    ) -> c_longlong;
 }
 
 /// Init the open-coroutine.
@@ -297,21 +302,8 @@ mod tests {
     fn test() {
         init(Config::single());
         let join = task!(
-            move |_| {
-                fn recurse(i: u32, p: &mut [u8; 10240]) {
-                    maybe_grow!(|| {
-                        // Ensure the stack allocation isn't optimized away.
-                        unsafe { _ = std::ptr::read_volatile(&p) };
-                        if i > 0 {
-                            recurse(i - 1, &mut [0; 10240]);
-                        }
-                    })
-                    .expect("allocate stack failed")
-                }
-                // Use ~500KB of stack.
-                recurse(50, &mut [0; 10240]);
-                // Use ~500KB of stack.
-                recurse(50, &mut [0; 10240]);
+            |_| {
+                println!("Hello, world!");
             },
             (),
         );

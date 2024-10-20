@@ -62,11 +62,9 @@ impl JoinHandle {
         if name.is_empty() {
             return Err(Error::new(ErrorKind::InvalidInput, "Invalid task name"));
         }
-        self.0
-            .wait_task_result(
-                name,
-                Duration::from_nanos(timeout_time.saturating_sub(crate::common::now())),
-            )
-            .map(|r| r.expect("result is None !"))
+        self.0.wait_task_result(
+            name,
+            Duration::from_nanos(timeout_time.saturating_sub(crate::common::now())),
+        )
     }
 }
