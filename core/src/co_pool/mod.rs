@@ -6,7 +6,7 @@ use crate::common::work_steal::{LocalQueue, WorkStealQueue};
 use crate::common::{get_timeout_time, now, CondvarBlocker};
 use crate::coroutine::suspender::Suspender;
 use crate::scheduler::{SchedulableCoroutine, Scheduler};
-use crate::{impl_current_for, impl_display_by_debug, impl_for_named, trace};
+use crate::{error, impl_current_for, impl_display_by_debug, impl_for_named, trace};
 use dashmap::DashMap;
 use std::cell::Cell;
 use std::io::{Error, ErrorKind};
@@ -211,16 +211,20 @@ impl<'p> CoroutinePool<'p> {
         func: impl FnOnce(Option<usize>) -> Option<usize> + 'p,
         param: Option<usize>,
     ) -> std::io::Result<String> {
+        let name = name.unwrap_or(format!("{}@{}", self.name(), uuid::Uuid::new_v4()));
         match self.state() {
             PoolState::Running => {}
             PoolState::Stopping | PoolState::Stopped => {
+                error!(
+                    "submit task:{} failed due to this coroutine pool is stopping or stopped",
+                    name
+                );
                 return Err(Error::new(
                     ErrorKind::Other,
                     "The coroutine pool is stopping or stopped !",
-                ))
+                ));
             }
         }
-        let name = name.unwrap_or(format!("{}@{}", self.name(), uuid::Uuid::new_v4()));
         self.submit_raw_task(Task::new(name.clone(), func, param));
         Ok(name)
     }
@@ -263,6 +267,7 @@ impl<'p> CoroutinePool<'p> {
                     return Ok(r);
                 }
                 if timeout_time.saturating_sub(now()) == 0 {
+                    error!("task:{} wait timeout !", task_name);
                     return Err(Error::new(ErrorKind::TimedOut, "wait timeout"));
                 }
             }
@@ -277,18 +282,26 @@ impl<'p> CoroutinePool<'p> {
         let (lock, cvar) = &*arc;
         drop(
             cvar.wait_timeout_while(
-                lock.lock()
-                    .map_err(|e| Error::new(ErrorKind::Other, format!("{e}")))?,
+                lock.lock().map_err(|e| {
+                    let msg = format!("{e}");
+                    error!("task:{} wait failed:{}", task_name, msg);
+                    Error::new(ErrorKind::Other, msg)
+                })?,
                 wait_time,
                 |&mut pending| pending,
             )
-            .map_err(|e| Error::new(ErrorKind::Other, format!("{e}")))?,
+            .map_err(|e| {
+                let msg = format!("{e}");
+                error!("task:{} wait failed:{}", task_name, msg);
+                Error::new(ErrorKind::Other, msg)
+            })?,
         );
         if let Some(r) = self.try_get_task_result(key) {
             self.notify(key);
             assert!(self.waits.remove(key).is_some());
             return Ok(r);
         }
+        error!("task:{} wait timeout !", task_name);
         Err(Error::new(ErrorKind::TimedOut, "wait timeout"))
     }
 
