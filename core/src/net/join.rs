@@ -1,3 +1,4 @@
+use crate::error;
 use crate::net::event_loop::EventLoop;
 use std::ffi::{c_char, CStr, CString};
 use std::io::{Error, ErrorKind};
@@ -60,13 +61,12 @@ impl JoinHandle {
     ) -> std::io::Result<Result<Option<usize>, &str>> {
         let name = self.get_name()?;
         if name.is_empty() {
+            error!("Invalid task name:{name}");
             return Err(Error::new(ErrorKind::InvalidInput, "Invalid task name"));
         }
-        self.0
-            .wait_task_result(
-                name,
-                Duration::from_nanos(timeout_time.saturating_sub(crate::common::now())),
-            )
-            .map(|r| r.expect("result is None !"))
+        self.0.wait_task_result(
+            name,
+            Duration::from_nanos(timeout_time.saturating_sub(crate::common::now())),
+        )
     }
 }
